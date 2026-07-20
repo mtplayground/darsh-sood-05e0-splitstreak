@@ -1,3 +1,5 @@
+#[allow(dead_code)]
+pub mod auth;
 mod config;
 mod db;
 #[allow(dead_code)]

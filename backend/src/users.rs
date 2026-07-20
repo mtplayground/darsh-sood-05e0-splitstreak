@@ -1,6 +1,7 @@
 use chrono::{DateTime, Utc};
 use serde::{Deserialize, Serialize};
 use sqlx::FromRow;
+use sqlx::PgPool;
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, FromRow)]
 pub struct User {
@@ -42,6 +43,42 @@ impl UserProfile {
             picture_url: normalize_optional(picture_url),
         })
     }
+}
+
+pub async fn upsert_from_profile(
+    pool: &PgPool,
+    profile: &UserProfile,
+) -> Result<User, sqlx::Error> {
+    sqlx::query_as::<_, User>(
+        r#"
+        INSERT INTO users (sub, email, email_verified, name, picture_url)
+        VALUES ($1, $2, $3, $4, $5)
+        ON CONFLICT (sub) DO UPDATE
+        SET
+            email = EXCLUDED.email,
+            email_verified = EXCLUDED.email_verified,
+            name = EXCLUDED.name,
+            picture_url = EXCLUDED.picture_url,
+            last_seen_at = NOW()
+        RETURNING
+            sub,
+            email,
+            email_verified,
+            name,
+            picture_url,
+            created_at,
+            updated_at,
+            last_seen_at
+        "#,
+    )
+    .bind(&profile.sub)
+    .bind(&profile.email)
+    .bind(profile.email_verified)
+    .bind(&profile.name)
+    .bind(&profile.picture_url)
+    .persistent(false)
+    .fetch_one(pool)
+    .await
 }
 
 fn normalize_required(field: &'static str, value: String) -> Result<String, UserModelError> {
