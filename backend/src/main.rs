@@ -5,6 +5,8 @@ mod account_recovery;
 mod config;
 mod db;
 mod email;
+#[allow(dead_code)]
+pub mod exercises;
 mod login;
 mod registration;
 #[allow(dead_code)]
