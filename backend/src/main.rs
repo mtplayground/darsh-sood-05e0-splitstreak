@@ -3,6 +3,7 @@ pub mod auth;
 mod auth_middleware;
 mod account_recovery;
 mod config;
+mod dashboard;
 mod db;
 mod email;
 mod exercise_search;
@@ -115,6 +116,7 @@ fn app(state: AppState) -> Router {
             "/api/logging/sessions/:session_id/cardio-entries",
             post(logging::add_cardio_entry),
         )
+        .route("/api/dashboard/today", get(dashboard::today))
         .route_layer(middleware::from_fn_with_state(
             state.clone(),
             auth_middleware::require_auth,

@@ -268,6 +268,25 @@ p {
   padding: 20px 0 28px;
 }
 
+.app-nav {
+  display: flex;
+  gap: 8px;
+  margin-left: auto;
+}
+
+.nav-button {
+  min-height: 44px;
+  padding: 0 16px;
+  background: #ffffff;
+}
+
+.nav-button--active,
+.nav-button[aria-current='page'] {
+  border-color: #17483f;
+  background: #17483f;
+  color: #ffffff;
+}
+
 .avatar {
   width: 56px;
   height: 56px;
@@ -319,6 +338,121 @@ p {
   grid-template-columns: repeat(2, minmax(0, 1fr));
   gap: 12px;
   margin-top: 16px;
+}
+
+.dashboard-layout {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(240px, 0.42fr);
+  gap: 16px;
+  align-items: start;
+}
+
+.dashboard-main,
+.streak-panel {
+  border: 1px solid #d5ddd4;
+  border-radius: 8px;
+  background: #ffffff;
+  box-shadow: 0 14px 34px rgb(23 32 38 / 8%);
+}
+
+.dashboard-main {
+  padding: 22px;
+}
+
+.streak-panel {
+  padding: 20px;
+}
+
+.today-workout {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(240px, 0.6fr);
+  gap: 18px;
+  align-items: center;
+  border: 1px solid #e3e8e1;
+  border-radius: 8px;
+  padding: 18px;
+  background: #fbfcfa;
+}
+
+.today-workout h3 {
+  margin: 0 0 8px;
+  color: #12181f;
+  font-size: 1.35rem;
+}
+
+.today-workout p,
+.dashboard-kicker {
+  margin-bottom: 0;
+  color: #46535f;
+  line-height: 1.5;
+}
+
+.dashboard-kicker {
+  margin-bottom: 6px;
+  font-size: 0.82rem;
+  font-weight: 900;
+  text-transform: uppercase;
+}
+
+.dashboard-metrics {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 8px;
+}
+
+.metric {
+  display: grid;
+  gap: 4px;
+  min-height: 78px;
+  align-content: center;
+  border-radius: 8px;
+  padding: 10px;
+  background: #eef4f0;
+  text-align: center;
+}
+
+.metric strong {
+  color: #17483f;
+  font-size: 1.45rem;
+}
+
+.metric span {
+  color: #46535f;
+  font-size: 0.78rem;
+  font-weight: 900;
+  text-transform: uppercase;
+}
+
+.dashboard-actions {
+  display: grid;
+  grid-template-columns: minmax(180px, max-content) minmax(110px, max-content);
+  gap: 10px;
+  margin-top: 16px;
+}
+
+.dashboard-actions .primary-action {
+  width: auto;
+  margin-top: 0;
+}
+
+.streak-placeholder {
+  display: grid;
+  place-items: center;
+  min-height: 148px;
+  border-radius: 8px;
+  background: #f8faf8;
+}
+
+.streak-placeholder strong {
+  color: #7c3f58;
+  font-size: 4rem;
+  line-height: 1;
+}
+
+.streak-placeholder span {
+  color: #46535f;
+  font-weight: 900;
+  text-transform: uppercase;
 }
 
 .log-layout {
@@ -549,11 +683,26 @@ p {
     align-items: flex-start;
   }
 
+  .top-bar {
+    display: grid;
+  }
+
+  .app-nav {
+    width: 100%;
+    margin-left: 0;
+  }
+
+  .app-nav button {
+    flex: 1;
+  }
+
   .profile-panel,
   .action-grid {
     grid-template-columns: 1fr;
   }
 
+  .dashboard-layout,
+  .today-workout,
   .log-layout,
   .set-entry,
   .cardio-grid,
@@ -581,9 +730,16 @@ p {
     padding: 18px;
   }
 
+  .dashboard-main,
+  .streak-panel,
   .log-workspace,
   .recent-panel {
     padding: 16px;
+  }
+
+  .dashboard-actions,
+  .dashboard-metrics {
+    grid-template-columns: 1fr;
   }
 
   .stepper-controls {

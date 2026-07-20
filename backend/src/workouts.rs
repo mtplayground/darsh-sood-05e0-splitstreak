@@ -42,6 +42,44 @@ pub struct CardioEntry {
     pub updated_at: DateTime<Utc>,
 }
 
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+pub struct WorkoutSessionSummary {
+    pub session: WorkoutSession,
+    pub strength_set_count: i64,
+    pub cardio_entry_count: i64,
+}
+
+#[derive(Debug, FromRow)]
+struct WorkoutSessionSummaryRow {
+    id: i64,
+    user_sub: String,
+    started_at: DateTime<Utc>,
+    completed_at: Option<DateTime<Utc>>,
+    notes: Option<String>,
+    created_at: DateTime<Utc>,
+    updated_at: DateTime<Utc>,
+    strength_set_count: i64,
+    cardio_entry_count: i64,
+}
+
+impl From<WorkoutSessionSummaryRow> for WorkoutSessionSummary {
+    fn from(row: WorkoutSessionSummaryRow) -> Self {
+        Self {
+            session: WorkoutSession {
+                id: row.id,
+                user_sub: row.user_sub,
+                started_at: row.started_at,
+                completed_at: row.completed_at,
+                notes: row.notes,
+                created_at: row.created_at,
+                updated_at: row.updated_at,
+            },
+            strength_set_count: row.strength_set_count,
+            cardio_entry_count: row.cardio_entry_count,
+        }
+    }
+}
+
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct NewWorkoutSession {
     pub user_sub: String,
@@ -292,6 +330,49 @@ pub async fn session_belongs_to_user(
     .persistent(false)
     .fetch_one(pool)
     .await
+}
+
+pub async fn find_today_session_summary(
+    pool: &PgPool,
+    user_sub: &str,
+) -> Result<Option<WorkoutSessionSummary>, sqlx::Error> {
+    let row = sqlx::query_as::<_, WorkoutSessionSummaryRow>(
+        r#"
+        SELECT
+            ws.id,
+            ws.user_sub,
+            ws.started_at,
+            ws.completed_at,
+            ws.notes,
+            ws.created_at,
+            ws.updated_at,
+            COALESCE(strength_counts.entry_count, 0)::BIGINT AS strength_set_count,
+            COALESCE(cardio_counts.entry_count, 0)::BIGINT AS cardio_entry_count
+        FROM workout_sessions ws
+        LEFT JOIN (
+            SELECT session_id, COUNT(*) AS entry_count
+            FROM strength_sets
+            GROUP BY session_id
+        ) strength_counts ON strength_counts.session_id = ws.id
+        LEFT JOIN (
+            SELECT session_id, COUNT(*) AS entry_count
+            FROM cardio_entries
+            GROUP BY session_id
+        ) cardio_counts ON cardio_counts.session_id = ws.id
+        WHERE
+            ws.user_sub = $1
+            AND ws.started_at >= date_trunc('day', NOW())
+            AND ws.started_at < date_trunc('day', NOW()) + INTERVAL '1 day'
+        ORDER BY ws.started_at DESC, ws.id DESC
+        LIMIT 1
+        "#,
+    )
+    .bind(user_sub)
+    .persistent(false)
+    .fetch_optional(pool)
+    .await?;
+
+    Ok(row.map(WorkoutSessionSummary::from))
 }
 
 pub async fn add_strength_set(

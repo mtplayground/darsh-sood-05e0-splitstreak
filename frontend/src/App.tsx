@@ -2,9 +2,11 @@ import React from 'react';
 
 import { AuthProvider } from './auth/AuthContext';
 import { useAuth } from './auth/useAuth';
+import { HomeDashboard } from './HomeDashboard';
 import { LogScreen } from './logging/LogScreen';
 
 type AuthPanel = 'login' | 'register';
+type AuthenticatedView = 'home' | 'log';
 
 export function App() {
   return (
@@ -172,6 +174,7 @@ function AuthGate() {
 
 function AuthenticatedApp() {
   const auth = useAuth();
+  const [view, setView] = React.useState<AuthenticatedView>('home');
   const [message, setMessage] = React.useState<string | null>(null);
   const [isBusy, setIsBusy] = React.useState(false);
   const user = auth.user;
@@ -226,9 +229,27 @@ function AuthenticatedApp() {
           </div>
           <div>
             <p className="eyebrow">SplitStreak</p>
-            <h1>Log workout</h1>
+            <h1>{view === 'home' ? 'Dashboard' : 'Log workout'}</h1>
           </div>
         </div>
+        <nav className="app-nav" aria-label="Primary">
+          <button
+            aria-current={view === 'home' ? 'page' : undefined}
+            className={view === 'home' ? 'nav-button nav-button--active' : 'nav-button'}
+            onClick={() => setView('home')}
+            type="button"
+          >
+            Home
+          </button>
+          <button
+            aria-current={view === 'log' ? 'page' : undefined}
+            className={view === 'log' ? 'nav-button nav-button--active' : 'nav-button'}
+            onClick={() => setView('log')}
+            type="button"
+          >
+            Log
+          </button>
+        </nav>
         {user.picture_url ? (
           <img alt="" className="avatar" src={user.picture_url} />
         ) : (
@@ -238,7 +259,11 @@ function AuthenticatedApp() {
         )}
       </header>
 
-      <LogScreen />
+      {view === 'home' ? (
+        <HomeDashboard onQuickStart={() => setView('log')} />
+      ) : (
+        <LogScreen />
+      )}
 
       <section
         className="profile-panel account-strip"
