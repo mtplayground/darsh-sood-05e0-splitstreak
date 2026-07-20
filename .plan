@@ -1,0 +1,56 @@
+# Architecture Plan
+
+Product: SplitStreak, a local-first workout logging PWA focused on strength sessions, cardio entries, split templates, history, trends, and rest-day-aware streaks.
+
+## Module Structure
+
+- `frontend/`: React SPA built with Vite and TypeScript.
+  - `src/app/`: router, providers, app shell, PWA registration.
+  - `src/auth/`: auth screens, auth context, token/session handling.
+  - `src/logging/`: workout log screen, exercise search, set entry, cardio entry.
+  - `src/dashboard/`: home screen, today's workout, quick-start actions.
+  - `src/splits/`: split library, active split selection, simple/advanced filtering.
+  - `src/streaks/`: streak indicator and calendar UI.
+  - `src/history/`: session history and lightweight trend charts.
+  - `src/sync/`: IndexedDB/local store, sync queue, reconciliation client, status indicator.
+  - `src/shared/`: API client, shared UI components, validation helpers, generated/shared types.
+- `backend/`: Rust Axum API.
+  - `src/main.rs`: server bootstrap, config loading, router assembly.
+  - `src/config.rs`: environment parsing and typed configuration.
+  - `src/db/`: PostgreSQL pool setup and migration integration.
+  - `src/auth/`: password hashing, JWT issuance/validation, middleware, verification and reset tokens.
+  - `src/users/`: user model and registration/login/verification endpoints.
+  - `src/exercises/`: exercise catalog model, seed data, search/autocomplete API.
+  - `src/sessions/`: session, strength set, cardio entry models and logging endpoints.
+  - `src/splits/`: split templates, active split selection, library APIs.
+  - `src/streaks/`: rest-day-aware streak computation and endpoint.
+  - `src/history/`: session log and trend query endpoints.
+  - `src/sync/`: reconciliation API, idempotency, conflict metadata.
+  - `src/errors.rs`: API error mapping and validation response format.
+  - `migrations/`: SQL migrations managed by the selected Rust migration tool.
+- `shared/`: OpenAPI schema or TypeScript type generation inputs if the stack benefits from a generated contract.
+- `e2e/`: Playwright tests for the core flow.
+- Root config: workspace scripts, lint/format settings, `.env.example`, deployment docs.
+
+## Issue Dependencies
+
+- Foundation: #1 creates the React/Axum structure; #2 adds TypeScript, linting, and formatting; #4 defines environment config; #36 finalizes self-hosted deployment.
+- Database base: #3 must precede schema work. User/auth issues #6-#11 depend on #3/#4. Exercise, session, cardio, split, sync, streak, and history models also depend on #3.
+- Auth flow: #6 user model -> #7 password/JWT -> #8 registration/email verification -> #9 login -> #10 middleware -> #11 verification/reset -> #12 frontend auth.
+- Exercise/logging flow: #13 catalog/seed -> #14 search API -> #15 session/set models and #16 cardio model -> #17 logging API -> #18 strength logging UI and #19 cardio UI -> #20 dashboard quick start.
+- Local-first sync: #21 client store/queue depends on frontend domain models from logging/auth; #22 reconciliation API depends on backend models; #23 sync status and duplicate handling depends on #21/#22.
+- Splits: #24 template model/seed -> #25 active split API -> #26 library API -> #27 library UI.
+- Streaks/history/trends: #28 streak service depends on sessions, cardio, and active split/rest-day data; #29 API -> #30 UI. #31 history API -> #32 history UI -> #33 trend charts.
+- Quality pass: #34 end-to-end core flow should run after auth, catalog, logging, sync, streak, and history basics exist. #35 validation/error review follows broad API and UI completion.
+
+## Key Design Decisions
+
+- Use Axum as a JSON API backend with PostgreSQL as the source of truth and SQL migrations checked into `backend/migrations/`.
+- Keep frontend and backend in one repository but separate build roots so each issue can evolve independently.
+- Use typed request/response DTOs at API boundaries. Prefer generated TypeScript types from an OpenAPI contract or a checked shared schema once endpoints stabilize.
+- Make client-created records use stable UUIDs and idempotency keys so local-first sync can safely retry writes and reconcile duplicates.
+- Store offline data in IndexedDB through a thin repository layer rather than tying UI components directly to storage.
+- Treat session logging as append-friendly domain events where practical, while keeping query-friendly tables for sessions, sets, cardio entries, split state, and streak/history views.
+- Centralize validation and error formatting so #35 can harden behavior without rewriting each endpoint.
+- Design the PWA shell early, but keep service worker caching conservative: cache static assets and app shell first, then add API-aware offline behavior through the sync queue.
+- Respect reverse-proxy headers in backend origin handling. Public URL decisions should use `X-Forwarded-Host`/`X-Forwarded-Proto` or `ALLOWED_CORS_ORIGIN`, not raw `Host`.
