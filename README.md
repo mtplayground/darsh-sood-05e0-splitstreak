@@ -17,6 +17,12 @@ Install JavaScript dependencies:
 npm install
 ```
 
+Create a local environment file from the checked-in example:
+
+```bash
+cp .env.example .env
+```
+
 Run the frontend and backend side by side:
 
 ```bash
