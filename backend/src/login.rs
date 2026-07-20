@@ -1,10 +1,10 @@
 use axum::extract::State;
-use axum::http::{header, HeaderMap, StatusCode};
+use axum::http::StatusCode;
 use axum::response::Redirect;
-use axum::Json;
+use axum::{Extension, Json};
 use serde::Serialize;
 
-use crate::users;
+use crate::auth_middleware::CurrentUser;
 use crate::AppState;
 
 pub async fn redirect_to_login(
@@ -19,52 +19,10 @@ pub async fn redirect_to_login(
     ))
 }
 
-pub async fn login(
-    State(state): State<AppState>,
-    headers: HeaderMap,
-) -> Result<Json<LoginResponse>, (StatusCode, Json<LoginError>)> {
-    let Some(auth) = &state.auth else {
-        return Err(auth_not_configured());
-    };
+pub async fn login(Extension(current_user): Extension<CurrentUser>) -> Json<LoginResponse> {
+    let user = current_user.user;
 
-    let cookie_header = headers.get(header::COOKIE).and_then(|value| value.to_str().ok());
-    let session = match auth.verify_session_cookie_header(cookie_header).await {
-        Ok(Some(session)) => session,
-        Ok(None) => {
-            return Err((
-                StatusCode::UNAUTHORIZED,
-                Json(LoginError {
-                    error: "authentication required",
-                    login_url: Some(auth.login_url(&state.frontend_return_to())),
-                }),
-            ));
-        }
-        Err(error) => {
-            tracing::warn!(%error, "login rejected invalid session cookie");
-            return Err((
-                StatusCode::UNAUTHORIZED,
-                Json(LoginError {
-                    error: "invalid session",
-                    login_url: Some(auth.login_url(&state.frontend_return_to())),
-                }),
-            ));
-        }
-    };
-
-    let user = users::upsert_from_profile(&state.db, &session.profile)
-        .await
-        .map_err(|error| {
-            tracing::error!(%error, "failed to upsert logged-in user");
-            (
-                StatusCode::INTERNAL_SERVER_ERROR,
-                Json(LoginError {
-                    error: "login failed",
-                    login_url: None,
-                }),
-            )
-        })?;
-
-    Ok(Json(LoginResponse {
+    Json(LoginResponse {
         status: "authenticated",
         session: "mctai_session",
         user: AuthenticatedUser {
@@ -74,7 +32,7 @@ pub async fn login(
             name: user.name,
             picture_url: user.picture_url,
         },
-    }))
+    })
 }
 
 fn auth_not_configured() -> (StatusCode, Json<LoginError>) {

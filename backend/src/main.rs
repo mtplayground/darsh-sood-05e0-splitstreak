@@ -1,5 +1,6 @@
 #[allow(dead_code)]
 pub mod auth;
+mod auth_middleware;
 mod config;
 mod db;
 mod email;
@@ -9,7 +10,13 @@ mod registration;
 pub mod users;
 
 use auth::AuthService;
-use axum::{extract::State, http::StatusCode, routing::get, routing::post, Json, Router};
+use axum::{
+    extract::State,
+    http::StatusCode,
+    middleware,
+    routing::{get, post},
+    Json, Router,
+};
 use config::Config;
 use email::EmailService;
 use serde::Serialize;
@@ -78,14 +85,19 @@ fn should_exit_after_migrations() -> bool {
 }
 
 fn app(state: AppState) -> Router {
+    let protected_auth_routes = Router::new()
+        .route("/api/auth/login", post(login::login))
+        .route_layer(middleware::from_fn_with_state(
+            state.clone(),
+            auth_middleware::require_auth,
+        ));
+
     Router::new()
         .route("/api/health", get(health))
-        .route(
-            "/api/auth/login",
-            get(login::redirect_to_login).post(login::login),
-        )
+        .route("/api/auth/login", get(login::redirect_to_login))
         .route("/api/auth/register", post(registration::register))
         .route("/health", get(health))
+        .merge(protected_auth_routes)
         .layer(TraceLayer::new_for_http())
         .with_state(state)
 }
@@ -129,6 +141,9 @@ async fn shutdown_signal() {
 #[cfg(test)]
 mod tests {
     use crate::config::DatabaseConfig;
+    use crate::email::EmailService;
+    use crate::{app, AppState};
+    use sqlx::postgres::PgPoolOptions;
 
     #[test]
     fn database_config_keeps_url_out_of_code() {
@@ -139,5 +154,24 @@ mod tests {
 
         assert_eq!(config.max_connections, 5);
         assert!(config.url.starts_with("postgres://"));
+    }
+
+    #[tokio::test]
+    async fn app_builds_with_protected_login_post_route() {
+        let db = match PgPoolOptions::new()
+            .max_connections(1)
+            .connect_lazy("postgres://user:password@localhost/splitstreak")
+        {
+            Ok(pool) => pool,
+            Err(error) => panic!("lazy pool should not connect to construct app: {error}"),
+        };
+        let state = AppState {
+            db,
+            auth: None,
+            email: EmailService::new(None),
+            self_url: Some("https://splitstreak.example.test/".to_owned()),
+        };
+
+        let _router = app(state);
     }
 }
