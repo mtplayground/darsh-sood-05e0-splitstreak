@@ -1,6 +1,7 @@
 #[allow(dead_code)]
 pub mod auth;
 mod auth_middleware;
+mod account_recovery;
 mod config;
 mod db;
 mod email;
@@ -87,6 +88,14 @@ fn should_exit_after_migrations() -> bool {
 fn app(state: AppState) -> Router {
     let protected_auth_routes = Router::new()
         .route("/api/auth/login", post(login::login))
+        .route(
+            "/api/auth/email-verification",
+            post(account_recovery::send_verification),
+        )
+        .route(
+            "/api/auth/email-verification/confirm",
+            post(account_recovery::confirm_verification),
+        )
         .route_layer(middleware::from_fn_with_state(
             state.clone(),
             auth_middleware::require_auth,
@@ -95,6 +104,10 @@ fn app(state: AppState) -> Router {
     Router::new()
         .route("/api/health", get(health))
         .route("/api/auth/login", get(login::redirect_to_login))
+        .route(
+            "/api/auth/password-reset",
+            post(account_recovery::request_password_reset),
+        )
         .route("/api/auth/register", post(registration::register))
         .route("/health", get(health))
         .merge(protected_auth_routes)
