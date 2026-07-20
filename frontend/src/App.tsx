@@ -2,6 +2,7 @@ import React from 'react';
 
 import { AuthProvider } from './auth/AuthContext';
 import { useAuth } from './auth/useAuth';
+import { LogScreen } from './logging/LogScreen';
 
 type AuthPanel = 'login' | 'register';
 
@@ -225,7 +226,7 @@ function AuthenticatedApp() {
           </div>
           <div>
             <p className="eyebrow">SplitStreak</p>
-            <h1>Training home</h1>
+            <h1>Log workout</h1>
           </div>
         </div>
         {user.picture_url ? (
@@ -237,7 +238,12 @@ function AuthenticatedApp() {
         )}
       </header>
 
-      <section className="profile-panel" aria-labelledby="profile-heading">
+      <LogScreen />
+
+      <section
+        className="profile-panel account-strip"
+        aria-labelledby="profile-heading"
+      >
         <div>
           <p className="eyebrow">Signed in</p>
           <h2 id="profile-heading">{user.name ?? user.email}</h2>
@@ -250,7 +256,7 @@ function AuthenticatedApp() {
         </span>
       </section>
 
-      <section className="action-grid" aria-label="Account actions">
+      <section className="action-grid account-actions" aria-label="Account actions">
         <button
           disabled={isBusy || user.email_verified}
           onClick={handleVerificationEmail}

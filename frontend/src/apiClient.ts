@@ -39,6 +39,59 @@ export type PasswordResetResponse = {
   message: string;
 };
 
+export type ExerciseSearchItem = {
+  id: number;
+  slug: string;
+  name: string;
+  modality: 'strength' | 'cardio';
+  primary_muscle_group: string | null;
+  equipment: string | null;
+  aliases: string[];
+  is_bodyweight: boolean;
+};
+
+export type ExerciseSearchResponse = {
+  query: string;
+  count: number;
+  exercises: ExerciseSearchItem[];
+};
+
+export type WorkoutSession = {
+  id: number;
+  user_sub: string;
+  started_at: string;
+  completed_at: string | null;
+  notes: string | null;
+  created_at: string;
+  updated_at: string;
+};
+
+export type StrengthSet = {
+  id: number;
+  session_id: number;
+  exercise_id: number;
+  set_number: number;
+  reps: number;
+  weight_kg: number;
+  created_at: string;
+  updated_at: string;
+};
+
+export type CreateSessionResponse = {
+  session: WorkoutSession;
+};
+
+export type AddStrengthSetPayload = {
+  exercise_id: number;
+  set_number: number;
+  reps: number;
+  weight_kg: number;
+};
+
+export type AddStrengthSetResponse = {
+  strength_set: StrengthSet;
+};
+
 export class ApiError extends Error {
   readonly loginUrl?: string;
   readonly status: number;
@@ -87,6 +140,41 @@ export async function requestPasswordReset(email: string) {
     body: JSON.stringify({ email }),
     method: 'POST'
   });
+}
+
+export async function searchExercises(query: string) {
+  const params = new URLSearchParams({
+    limit: '8',
+    modality: 'strength',
+    q: query
+  });
+
+  return requestJson<ExerciseSearchResponse>(
+    `/api/exercises/search?${params.toString()}`,
+    {
+      method: 'GET'
+    }
+  );
+}
+
+export async function createWorkoutSession(notes?: string) {
+  return requestJson<CreateSessionResponse>('/api/logging/sessions', {
+    body: JSON.stringify({ notes }),
+    method: 'POST'
+  });
+}
+
+export async function addStrengthSet(
+  sessionId: number,
+  payload: AddStrengthSetPayload
+) {
+  return requestJson<AddStrengthSetResponse>(
+    `/api/logging/sessions/${sessionId}/strength-sets`,
+    {
+      body: JSON.stringify(payload),
+      method: 'POST'
+    }
+  );
 }
 
 async function requestJson<T>(path: string, init: RequestInit): Promise<T> {
