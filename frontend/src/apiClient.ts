@@ -66,6 +66,20 @@ export type WorkoutSession = {
   updated_at: string;
 };
 
+export type WorkoutSessionSummary = {
+  session: WorkoutSession;
+  strength_set_count: number;
+  cardio_entry_count: number;
+};
+
+export type TodayDashboardResponse = {
+  workout: WorkoutSessionSummary | null;
+  streak: {
+    status: 'pending';
+    current_days: number | null;
+  };
+};
+
 export type StrengthSet = {
   id: number;
   session_id: number;
@@ -194,6 +208,12 @@ export async function createWorkoutSession(notes?: string) {
   return requestJson<CreateSessionResponse>('/api/logging/sessions', {
     body: JSON.stringify({ notes }),
     method: 'POST'
+  });
+}
+
+export async function fetchTodayDashboard() {
+  return requestJson<TodayDashboardResponse>('/api/dashboard/today', {
+    method: 'GET'
   });
 }
 
