@@ -51,6 +51,41 @@ pub struct ExerciseCatalogFilter {
     pub limit: i64,
 }
 
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct ExerciseSearch {
+    pub query: String,
+    pub modality: Option<ExerciseModality>,
+    pub limit: i64,
+}
+
+impl ExerciseSearch {
+    pub fn new(
+        query: impl Into<String>,
+        modality: Option<ExerciseModality>,
+        limit: i64,
+    ) -> Result<Self, ExerciseModelError> {
+        let query = query.into();
+        let query = query.trim();
+        if query.is_empty() {
+            return Err(ExerciseModelError::InvalidSearchQuery);
+        }
+
+        if query.chars().count() > 80 {
+            return Err(ExerciseModelError::InvalidSearchQuery);
+        }
+
+        if !(1..=20).contains(&limit) {
+            return Err(ExerciseModelError::InvalidLimit);
+        }
+
+        Ok(Self {
+            query: query.to_owned(),
+            modality,
+            limit,
+        })
+    }
+}
+
 impl Default for ExerciseCatalogFilter {
     fn default() -> Self {
         Self {
@@ -68,6 +103,71 @@ impl ExerciseCatalogFilter {
 
         Ok(Self { modality, limit })
     }
+}
+
+pub async fn search_catalog(
+    pool: &PgPool,
+    search: &ExerciseSearch,
+) -> Result<Vec<Exercise>, sqlx::Error> {
+    let escaped_query = escape_like_pattern(&search.query.to_ascii_lowercase());
+    let contains_pattern = format!("%{escaped_query}%");
+    let prefix_pattern = format!("{escaped_query}%");
+
+    sqlx::query_as::<_, Exercise>(
+        r#"
+        WITH input AS (
+            SELECT lower($1::TEXT) AS query
+        )
+        SELECT
+            exercises.id,
+            exercises.slug,
+            exercises.name,
+            exercises.modality,
+            exercises.primary_muscle_group,
+            exercises.equipment,
+            exercises.aliases,
+            exercises.is_bodyweight,
+            exercises.created_at,
+            exercises.updated_at
+        FROM exercises, input
+        WHERE ($4::TEXT IS NULL OR exercises.modality = $4)
+            AND (
+                lower(exercises.name) LIKE $2 ESCAPE '\'
+                OR EXISTS (
+                    SELECT 1
+                    FROM unnest(exercises.aliases) AS alias
+                    WHERE lower(alias) LIKE $2 ESCAPE '\'
+                )
+            )
+        ORDER BY
+            CASE
+                WHEN lower(exercises.name) = input.query THEN 0
+                WHEN lower(exercises.name) LIKE $3 ESCAPE '\' THEN 1
+                WHEN EXISTS (
+                    SELECT 1
+                    FROM unnest(exercises.aliases) AS alias
+                    WHERE lower(alias) = input.query
+                ) THEN 2
+                WHEN EXISTS (
+                    SELECT 1
+                    FROM unnest(exercises.aliases) AS alias
+                    WHERE lower(alias) LIKE $3 ESCAPE '\'
+                ) THEN 3
+                WHEN lower(exercises.name) LIKE $2 ESCAPE '\' THEN 4
+                ELSE 5
+            END,
+            exercises.name ASC
+        LIMIT $5
+        "#,
+    )
+    .bind(&search.query)
+    .bind(&contains_pattern)
+    .bind(&prefix_pattern)
+    .bind(search.modality.map(ExerciseModality::as_str))
+    .bind(search.limit)
+    .persistent(false)
+    .fetch_all(pool)
+    .await
 }
 
 pub async fn list_catalog(
@@ -128,6 +228,7 @@ pub async fn find_by_slug(pool: &PgPool, slug: &str) -> Result<Option<Exercise>,
 pub enum ExerciseModelError {
     InvalidLimit,
     InvalidModality,
+    InvalidSearchQuery,
 }
 
 impl std::fmt::Display for ExerciseModelError {
@@ -135,11 +236,22 @@ impl std::fmt::Display for ExerciseModelError {
         match self {
             Self::InvalidLimit => write!(formatter, "exercise catalog limit must be 1 through 200"),
             Self::InvalidModality => write!(formatter, "exercise modality must be strength or cardio"),
+            Self::InvalidSearchQuery => write!(
+                formatter,
+                "exercise search query must be 1 through 80 characters"
+            ),
         }
     }
 }
 
 impl std::error::Error for ExerciseModelError {}
+
+fn escape_like_pattern(value: &str) -> String {
+    value
+        .replace('\\', r"\\")
+        .replace('%', r"\%")
+        .replace('_', r"\_")
+}
 
 #[cfg(test)]
 mod tests {
@@ -171,5 +283,31 @@ mod tests {
             ExerciseCatalogFilter::new(None, 201),
             Err(ExerciseModelError::InvalidLimit)
         );
+    }
+
+    #[test]
+    fn validates_search_query_and_limit() {
+        let search = ExerciseSearch::new(" bench ", Some(ExerciseModality::Strength), 8);
+        assert_eq!(
+            search,
+            Ok(ExerciseSearch {
+                query: "bench".to_owned(),
+                modality: Some(ExerciseModality::Strength),
+                limit: 8,
+            })
+        );
+        assert_eq!(
+            ExerciseSearch::new(" ", None, 8),
+            Err(ExerciseModelError::InvalidSearchQuery)
+        );
+        assert_eq!(
+            ExerciseSearch::new("bench", None, 21),
+            Err(ExerciseModelError::InvalidLimit)
+        );
+    }
+
+    #[test]
+    fn escapes_like_pattern_wildcards() {
+        assert_eq!(escape_like_pattern(r"50% incline_row"), r"50\% incline\_row");
     }
 }

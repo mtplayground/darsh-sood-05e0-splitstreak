@@ -5,6 +5,7 @@ mod account_recovery;
 mod config;
 mod db;
 mod email;
+mod exercise_search;
 #[allow(dead_code)]
 pub mod exercises;
 mod login;
@@ -105,6 +106,7 @@ fn app(state: AppState) -> Router {
 
     Router::new()
         .route("/api/health", get(health))
+        .route("/api/exercises/search", get(exercise_search::search))
         .route("/api/auth/login", get(login::redirect_to_login))
         .route(
             "/api/auth/password-reset",
