@@ -35,3 +35,11 @@ Build both projects:
 ```bash
 npm run build
 ```
+
+Run consistency checks:
+
+```bash
+npm run typecheck
+npm run lint
+npm run format:check
+```
