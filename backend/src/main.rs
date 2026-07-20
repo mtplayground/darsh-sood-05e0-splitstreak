@@ -3,6 +3,7 @@ pub mod auth;
 mod config;
 mod db;
 mod email;
+mod login;
 mod registration;
 #[allow(dead_code)]
 pub mod users;
@@ -79,6 +80,10 @@ fn should_exit_after_migrations() -> bool {
 fn app(state: AppState) -> Router {
     Router::new()
         .route("/api/health", get(health))
+        .route(
+            "/api/auth/login",
+            get(login::redirect_to_login).post(login::login),
+        )
         .route("/api/auth/register", post(registration::register))
         .route("/health", get(health))
         .layer(TraceLayer::new_for_http())
