@@ -8,6 +8,7 @@ mod email;
 mod exercise_search;
 #[allow(dead_code)]
 pub mod exercises;
+mod logging;
 mod login;
 mod registration;
 #[allow(dead_code)]
@@ -20,7 +21,7 @@ use axum::{
     extract::State,
     http::StatusCode,
     middleware,
-    routing::{get, post},
+    routing::{get, patch, post},
     Json, Router,
 };
 use config::Config;
@@ -100,6 +101,19 @@ fn app(state: AppState) -> Router {
         .route(
             "/api/auth/email-verification/confirm",
             post(account_recovery::confirm_verification),
+        )
+        .route("/api/logging/sessions", post(logging::create_session))
+        .route(
+            "/api/logging/sessions/:session_id",
+            patch(logging::update_session),
+        )
+        .route(
+            "/api/logging/sessions/:session_id/strength-sets",
+            post(logging::add_strength_set),
+        )
+        .route(
+            "/api/logging/sessions/:session_id/cardio-entries",
+            post(logging::add_cardio_entry),
         )
         .route_layer(middleware::from_fn_with_state(
             state.clone(),

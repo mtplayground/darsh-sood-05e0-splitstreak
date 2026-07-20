@@ -65,6 +65,33 @@ impl NewWorkoutSession {
     }
 }
 
+#[derive(Debug, Clone, PartialEq, Eq, Default)]
+pub struct WorkoutSessionUpdate {
+    pub started_at: Option<DateTime<Utc>>,
+    pub completed_at: Option<DateTime<Utc>>,
+    pub notes: Option<String>,
+}
+
+impl WorkoutSessionUpdate {
+    pub fn new(
+        started_at: Option<DateTime<Utc>>,
+        completed_at: Option<DateTime<Utc>>,
+        notes: Option<String>,
+    ) -> Result<Self, WorkoutModelError> {
+        if let (Some(started_at), Some(completed_at)) = (started_at, completed_at) {
+            if completed_at < started_at {
+                return Err(WorkoutModelError::InvalidCompletedAt);
+            }
+        }
+
+        Ok(Self {
+            started_at,
+            completed_at,
+            notes: normalize_optional(notes),
+        })
+    }
+}
+
 #[derive(Debug, Clone, PartialEq)]
 pub struct NewStrengthSet {
     pub session_id: i64,
@@ -207,6 +234,61 @@ pub async fn create_session(
     .bind(&session.user_sub)
     .bind(session.started_at)
     .bind(&session.notes)
+    .persistent(false)
+    .fetch_one(pool)
+    .await
+}
+
+pub async fn update_session_for_user(
+    pool: &PgPool,
+    session_id: i64,
+    user_sub: &str,
+    update: &WorkoutSessionUpdate,
+) -> Result<Option<WorkoutSession>, sqlx::Error> {
+    sqlx::query_as::<_, WorkoutSession>(
+        r#"
+        UPDATE workout_sessions
+        SET
+            started_at = COALESCE($3, started_at),
+            completed_at = COALESCE($4, completed_at),
+            notes = COALESCE($5, notes)
+        WHERE id = $1 AND user_sub = $2
+        RETURNING
+            id,
+            user_sub,
+            started_at,
+            completed_at,
+            notes,
+            created_at,
+            updated_at
+        "#,
+    )
+    .bind(session_id)
+    .bind(user_sub)
+    .bind(update.started_at)
+    .bind(update.completed_at)
+    .bind(&update.notes)
+    .persistent(false)
+    .fetch_optional(pool)
+    .await
+}
+
+pub async fn session_belongs_to_user(
+    pool: &PgPool,
+    session_id: i64,
+    user_sub: &str,
+) -> Result<bool, sqlx::Error> {
+    sqlx::query_scalar::<_, bool>(
+        r#"
+        SELECT EXISTS (
+            SELECT 1
+            FROM workout_sessions
+            WHERE id = $1 AND user_sub = $2
+        )
+        "#,
+    )
+    .bind(session_id)
+    .bind(user_sub)
     .persistent(false)
     .fetch_one(pool)
     .await
@@ -384,6 +466,7 @@ fn validate_optional_float(
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum WorkoutModelError {
+    InvalidCompletedAt,
     InvalidDistance,
     InvalidDuration,
     InvalidExerciseId,
@@ -400,6 +483,7 @@ pub enum WorkoutModelError {
 impl std::fmt::Display for WorkoutModelError {
     fn fmt(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
+            Self::InvalidCompletedAt => write!(formatter, "completed_at must be after started_at"),
             Self::InvalidDistance => write!(formatter, "distance_meters must be 0 through 1000000"),
             Self::InvalidDuration => write!(formatter, "duration_seconds must be 1 through 86400"),
             Self::InvalidExerciseId => write!(formatter, "exercise_id must be positive"),
@@ -440,6 +524,23 @@ mod tests {
         assert_eq!(
             NewWorkoutSession::new(" ", None, None),
             Err(WorkoutModelError::RequiredFieldEmpty { field: "user_sub" })
+        );
+    }
+
+    #[test]
+    fn workout_session_update_rejects_completion_before_start() {
+        let started_at = match DateTime::parse_from_rfc3339("2026-07-20T12:00:00Z") {
+            Ok(value) => value.with_timezone(&Utc),
+            Err(error) => panic!("test timestamp should parse: {error}"),
+        };
+        let completed_at = match DateTime::parse_from_rfc3339("2026-07-20T11:59:00Z") {
+            Ok(value) => value.with_timezone(&Utc),
+            Err(error) => panic!("test timestamp should parse: {error}"),
+        };
+
+        assert_eq!(
+            WorkoutSessionUpdate::new(Some(started_at), Some(completed_at), None),
+            Err(WorkoutModelError::InvalidCompletedAt)
         );
     }
 
