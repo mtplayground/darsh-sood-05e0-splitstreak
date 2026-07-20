@@ -30,6 +30,18 @@ The backend listens on `0.0.0.0:8080` by default and exposes:
 
 The Vite dev server proxies `/api/*` to the backend.
 
+The backend requires PostgreSQL via `DATABASE_URL`. In this workspace:
+
+```bash
+export DATABASE_URL=$(cat /workspace/.database_url)
+```
+
+Run migrations manually:
+
+```bash
+npm run backend:migrate
+```
+
 Build both projects:
 
 ```bash

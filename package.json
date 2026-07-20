@@ -16,6 +16,7 @@
     "backend:lint": "cargo clippy --manifest-path backend/Cargo.toml --all-targets -- -D warnings",
     "backend:format": "cargo fmt --manifest-path backend/Cargo.toml",
     "backend:format:check": "cargo fmt --manifest-path backend/Cargo.toml -- --check",
+    "backend:migrate": "cargo run --manifest-path backend/Cargo.toml -- --migrate-only",
     "frontend:dev": "npm run dev --workspace frontend",
     "frontend:lint": "npm run lint --workspace frontend",
     "frontend:format": "npm run format --workspace frontend",
