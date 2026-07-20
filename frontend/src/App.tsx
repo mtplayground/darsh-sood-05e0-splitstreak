@@ -7,6 +7,7 @@ type HealthState =
 
 export function App() {
   const [health, setHealth] = React.useState<HealthState>({ status: 'loading' });
+  const [isOffline, setIsOffline] = React.useState(() => !navigator.onLine);
 
   React.useEffect(() => {
     let isMounted = true;
@@ -48,6 +49,24 @@ export function App() {
     };
   }, []);
 
+  React.useEffect(() => {
+    function handleOnline() {
+      setIsOffline(false);
+    }
+
+    function handleOffline() {
+      setIsOffline(true);
+    }
+
+    window.addEventListener('online', handleOnline);
+    window.addEventListener('offline', handleOffline);
+
+    return () => {
+      window.removeEventListener('online', handleOnline);
+      window.removeEventListener('offline', handleOffline);
+    };
+  }, []);
+
   return (
     <main className="shell">
       <section className="intro" aria-labelledby="app-title">
@@ -63,6 +82,13 @@ export function App() {
           </p>
         </div>
       </section>
+
+      {isOffline && (
+        <section className="offline-banner" aria-live="polite">
+          <span className="status-dot status-dot--offline" />
+          <p>Offline app shell loaded.</p>
+        </section>
+      )}
 
       <section className="status-panel" aria-live="polite">
         <span className={`status-dot status-dot--${health.status}`} />
