@@ -81,6 +81,28 @@ pub async fn upsert_from_profile(
     .await
 }
 
+pub async fn find_by_email(pool: &PgPool, email: &str) -> Result<Option<User>, sqlx::Error> {
+    sqlx::query_as::<_, User>(
+        r#"
+        SELECT
+            sub,
+            email,
+            email_verified,
+            name,
+            picture_url,
+            created_at,
+            updated_at,
+            last_seen_at
+        FROM users
+        WHERE lower(email) = lower($1)
+        "#,
+    )
+    .bind(email)
+    .persistent(false)
+    .fetch_optional(pool)
+    .await
+}
+
 fn normalize_required(field: &'static str, value: String) -> Result<String, UserModelError> {
     let normalized = value.trim().to_owned();
     if normalized.is_empty() {
