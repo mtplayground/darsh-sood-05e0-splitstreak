@@ -1,0 +1,17 @@
+{
+  "name": "splitstreak",
+  "version": "0.1.0",
+  "private": true,
+  "workspaces": [
+    "frontend"
+  ],
+  "scripts": {
+    "dev": "concurrently -n api,web -c blue,green \"cargo run --manifest-path backend/Cargo.toml\" \"npm run dev --workspace frontend\"",
+    "build": "npm run build --workspace frontend && cargo build --manifest-path backend/Cargo.toml",
+    "backend:dev": "cargo run --manifest-path backend/Cargo.toml",
+    "frontend:dev": "npm run dev --workspace frontend"
+  },
+  "devDependencies": {
+    "concurrently": "^9.1.2"
+  }
+}
