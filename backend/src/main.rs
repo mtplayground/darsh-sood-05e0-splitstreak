@@ -1,5 +1,7 @@
 mod config;
 mod db;
+#[allow(dead_code)]
+pub mod users;
 
 use axum::{extract::State, http::StatusCode, routing::get, Json, Router};
 use config::Config;
