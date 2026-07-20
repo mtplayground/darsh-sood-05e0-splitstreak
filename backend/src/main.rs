@@ -12,6 +12,8 @@ mod login;
 mod registration;
 #[allow(dead_code)]
 pub mod users;
+#[allow(dead_code)]
+pub mod workouts;
 
 use auth::AuthService;
 use axum::{
