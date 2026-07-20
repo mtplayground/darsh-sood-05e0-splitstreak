@@ -71,7 +71,14 @@ type NumberStepperProps = {
   value: number;
 };
 
-function NumberStepper({ label, max, min, onChange, step, value }: NumberStepperProps) {
+export function NumberStepper({
+  label,
+  max,
+  min,
+  onChange,
+  step,
+  value
+}: NumberStepperProps) {
   function commit(nextValue: number) {
     const rounded = Math.round(nextValue * 100) / 100;
     onChange(Math.min(max, Math.max(min, rounded)));

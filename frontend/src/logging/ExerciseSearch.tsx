@@ -5,13 +5,21 @@ import { searchExercises } from '../apiClient';
 
 type ExerciseSearchProps = {
   disabled?: boolean;
+  inputId?: string;
+  label?: string;
+  modality?: ExerciseSearchItem['modality'];
   onSelect: (exercise: ExerciseSearchItem | null) => void;
+  placeholder?: string;
   selectedExercise: ExerciseSearchItem | null;
 };
 
 export function ExerciseSearch({
   disabled = false,
+  inputId = 'exercise-search',
+  label = 'Exercise',
+  modality = 'strength',
   onSelect,
+  placeholder = 'Bench, squat, row...',
   selectedExercise
 }: ExerciseSearchProps) {
   const [query, setQuery] = React.useState(selectedExercise?.name ?? '');
@@ -38,7 +46,7 @@ export function ExerciseSearch({
     const timer = window.setTimeout(() => {
       setIsLoading(true);
       setError(null);
-      searchExercises(normalized)
+      searchExercises(normalized, modality)
         .then((response) => {
           if (!abortController.signal.aborted) {
             setResults(response.exercises);
@@ -61,22 +69,22 @@ export function ExerciseSearch({
       abortController.abort();
       window.clearTimeout(timer);
     };
-  }, [query, selectedExercise]);
+  }, [modality, query, selectedExercise]);
 
   return (
     <div className="exercise-search">
-      <label htmlFor="exercise-search">Exercise</label>
+      <label htmlFor={inputId}>{label}</label>
       <input
         autoComplete="off"
         disabled={disabled}
-        id="exercise-search"
+        id={inputId}
         onChange={(event) => {
           setQuery(event.target.value);
           if (selectedExercise && event.target.value !== selectedExercise.name) {
             onSelect(null);
           }
         }}
-        placeholder="Bench, squat, row..."
+        placeholder={placeholder}
         type="search"
         value={query}
       />
