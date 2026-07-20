@@ -2,19 +2,32 @@
 pub mod auth;
 mod config;
 mod db;
+mod email;
+mod registration;
 #[allow(dead_code)]
 pub mod users;
 
-use axum::{extract::State, http::StatusCode, routing::get, Json, Router};
+use auth::AuthService;
+use axum::{extract::State, http::StatusCode, routing::get, routing::post, Json, Router};
 use config::Config;
+use email::EmailService;
 use serde::Serialize;
 use sqlx::PgPool;
 use tower_http::trace::TraceLayer;
 use tracing_subscriber::{layer::SubscriberExt, util::SubscriberInitExt};
 
 #[derive(Clone)]
-struct AppState {
-    db: PgPool,
+pub(crate) struct AppState {
+    pub(crate) db: PgPool,
+    pub(crate) auth: Option<AuthService>,
+    pub(crate) email: EmailService,
+    self_url: Option<String>,
+}
+
+impl AppState {
+    pub(crate) fn frontend_return_to(&self) -> String {
+        self.self_url.clone().unwrap_or_else(|| "/".to_owned())
+    }
 }
 
 #[derive(Debug, Serialize)]
@@ -42,7 +55,12 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
         return Ok(());
     }
 
-    let state = AppState { db: db_pool };
+    let state = AppState {
+        db: db_pool,
+        auth: config.auth.clone().map(AuthService::new),
+        email: EmailService::new(config.email.clone()),
+        self_url: config.app.self_url.clone(),
+    };
     let listener = tokio::net::TcpListener::bind(config.socket_addr()).await?;
 
     tracing::info!("listening on {}", listener.local_addr()?);
@@ -61,6 +79,7 @@ fn should_exit_after_migrations() -> bool {
 fn app(state: AppState) -> Router {
     Router::new()
         .route("/api/health", get(health))
+        .route("/api/auth/register", post(registration::register))
         .route("/health", get(health))
         .layer(TraceLayer::new_for_http())
         .with_state(state)

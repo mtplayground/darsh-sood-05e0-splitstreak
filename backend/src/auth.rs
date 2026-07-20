@@ -22,6 +22,15 @@ impl AuthService {
         }
     }
 
+    pub fn login_url(&self, return_to: &str) -> String {
+        format!(
+            "{}/login?app_token={}&return_to={}",
+            self.config.url.trim_end_matches('/'),
+            urlencoding::encode(&self.config.app_token),
+            urlencoding::encode(return_to)
+        )
+    }
+
     pub async fn verify_session_cookie_header(
         &self,
         cookie_header: Option<&str>,
