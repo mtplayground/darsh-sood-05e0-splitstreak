@@ -48,7 +48,8 @@ button:disabled {
   opacity: 0.58;
 }
 
-input {
+input,
+select {
   width: 100%;
   min-height: 48px;
   border: 1px solid #b7c2ba;
@@ -354,6 +355,10 @@ p {
   font-size: 1.55rem;
 }
 
+.log-mode-tabs {
+  margin-bottom: 18px;
+}
+
 .exercise-search {
   position: relative;
   display: grid;
@@ -361,7 +366,9 @@ p {
 }
 
 .exercise-search label,
-.number-stepper > span {
+.number-stepper > span,
+.cardio-type-field > span,
+.notes-field > span {
   color: #26323c;
   font-size: 0.9rem;
   font-weight: 900;
@@ -457,6 +464,29 @@ p {
   margin-top: 2px;
 }
 
+.cardio-entry {
+  display: grid;
+  gap: 14px;
+}
+
+.cardio-type-field,
+.notes-field {
+  display: grid;
+  gap: 8px;
+}
+
+.cardio-grid {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 12px;
+}
+
+.cardio-grid--machine {
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  border-top: 1px solid #e3e8e1;
+  padding-top: 14px;
+}
+
 .recent-sets {
   display: grid;
   gap: 10px;
@@ -525,7 +555,9 @@ p {
   }
 
   .log-layout,
-  .set-entry {
+  .set-entry,
+  .cardio-grid,
+  .cardio-grid--machine {
     grid-template-columns: 1fr;
   }
 

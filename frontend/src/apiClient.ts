@@ -77,6 +77,21 @@ export type StrengthSet = {
   updated_at: string;
 };
 
+export type CardioEntry = {
+  id: number;
+  session_id: number;
+  exercise_id: number;
+  cardio_type: string;
+  duration_seconds: number;
+  distance_meters: number | null;
+  intensity_level: number | null;
+  speed_kph: number | null;
+  incline_percent: number | null;
+  notes: string | null;
+  created_at: string;
+  updated_at: string;
+};
+
 export type CreateSessionResponse = {
   session: WorkoutSession;
 };
@@ -90,6 +105,21 @@ export type AddStrengthSetPayload = {
 
 export type AddStrengthSetResponse = {
   strength_set: StrengthSet;
+};
+
+export type AddCardioEntryPayload = {
+  exercise_id: number;
+  cardio_type: string;
+  duration_seconds: number;
+  distance_meters?: number;
+  intensity_level?: number;
+  speed_kph?: number;
+  incline_percent?: number;
+  notes?: string;
+};
+
+export type AddCardioEntryResponse = {
+  cardio_entry: CardioEntry;
 };
 
 export class ApiError extends Error {
@@ -142,10 +172,13 @@ export async function requestPasswordReset(email: string) {
   });
 }
 
-export async function searchExercises(query: string) {
+export async function searchExercises(
+  query: string,
+  modality: ExerciseSearchItem['modality'] = 'strength'
+) {
   const params = new URLSearchParams({
     limit: '8',
-    modality: 'strength',
+    modality,
     q: query
   });
 
@@ -170,6 +203,19 @@ export async function addStrengthSet(
 ) {
   return requestJson<AddStrengthSetResponse>(
     `/api/logging/sessions/${sessionId}/strength-sets`,
+    {
+      body: JSON.stringify(payload),
+      method: 'POST'
+    }
+  );
+}
+
+export async function addCardioEntry(
+  sessionId: number,
+  payload: AddCardioEntryPayload
+) {
+  return requestJson<AddCardioEntryResponse>(
+    `/api/logging/sessions/${sessionId}/cardio-entries`,
     {
       body: JSON.stringify(payload),
       method: 'POST'
