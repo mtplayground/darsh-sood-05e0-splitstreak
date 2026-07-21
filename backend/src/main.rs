@@ -1,5 +1,7 @@
 #[allow(dead_code)]
 pub mod auth;
+#[allow(dead_code)]
+pub mod active_splits;
 mod auth_middleware;
 mod account_recovery;
 mod config;
@@ -14,6 +16,7 @@ mod login;
 mod registration;
 #[allow(dead_code)]
 pub mod split_templates;
+mod split_selection;
 mod sync;
 #[allow(dead_code)]
 pub mod users;
@@ -121,6 +124,10 @@ fn app(state: AppState) -> Router {
         )
         .route("/api/dashboard/today", get(dashboard::today))
         .route("/api/sync/reconcile", post(sync::reconcile))
+        .route(
+            "/api/splits/active",
+            get(split_selection::get_active_split).put(split_selection::select_active_split),
+        )
         .route_layer(middleware::from_fn_with_state(
             state.clone(),
             auth_middleware::require_auth,
