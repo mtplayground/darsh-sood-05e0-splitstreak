@@ -4,6 +4,7 @@ use axum::{Extension, Json};
 use serde::Serialize;
 
 use crate::auth_middleware::CurrentUser;
+use crate::streaks;
 use crate::workouts;
 use crate::AppState;
 
@@ -23,25 +24,25 @@ pub async fn today(
             )
         })?;
 
-    Ok(Json(TodayDashboardResponse {
-        workout,
-        streak: StreakPlaceholder {
-            status: "pending",
-            current_days: None,
-        },
-    }))
+    let streak = streaks::compute_current_streak(&state.db, &current_user.user.sub)
+        .await
+        .map_err(|error| {
+            tracing::error!(%error, "today streak computation failed");
+            (
+                StatusCode::INTERNAL_SERVER_ERROR,
+                Json(DashboardError {
+                    error: "dashboard could not be loaded",
+                }),
+            )
+        })?;
+
+    Ok(Json(TodayDashboardResponse { workout, streak }))
 }
 
 #[derive(Debug, Serialize)]
 pub struct TodayDashboardResponse {
     pub workout: Option<workouts::WorkoutSessionSummary>,
-    pub streak: StreakPlaceholder,
-}
-
-#[derive(Debug, Serialize)]
-pub struct StreakPlaceholder {
-    pub status: &'static str,
-    pub current_days: Option<i64>,
+    pub streak: streaks::StreakSummary,
 }
 
 #[derive(Debug, Serialize)]
