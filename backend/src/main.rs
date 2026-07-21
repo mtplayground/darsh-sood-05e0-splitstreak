@@ -34,13 +34,15 @@ use axum::{
     extract::State,
     http::StatusCode,
     middleware,
-    routing::{get, patch, post},
+    routing::{any, get, patch, post},
     Json, Router,
 };
 use config::Config;
 use email::EmailService;
 use serde::Serialize;
 use sqlx::PgPool;
+use std::path::PathBuf;
+use tower_http::services::{ServeDir, ServeFile};
 use tower_http::trace::TraceLayer;
 use tracing_subscriber::{layer::SubscriberExt, util::SubscriberInitExt};
 
@@ -50,6 +52,7 @@ pub(crate) struct AppState {
     pub(crate) auth: Option<AuthService>,
     pub(crate) email: EmailService,
     self_url: Option<String>,
+    static_dir: Option<PathBuf>,
 }
 
 impl AppState {
@@ -88,6 +91,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
         auth: config.auth.clone().map(AuthService::new),
         email: EmailService::new(config.email.clone()),
         self_url: config.app.self_url.clone(),
+        static_dir: config.app.static_dir.clone(),
     };
     let listener = tokio::net::TcpListener::bind(config.socket_addr()).await?;
 
@@ -141,7 +145,7 @@ fn app(state: AppState) -> Router {
             auth_middleware::require_auth,
         ));
 
-    Router::new()
+    let router = Router::new()
         .route("/api/health", get(health))
         .route("/api/exercises/search", get(exercise_search::search))
         .route("/api/splits/templates", get(splits_library::list))
@@ -151,10 +155,25 @@ fn app(state: AppState) -> Router {
             post(account_recovery::request_password_reset),
         )
         .route("/api/auth/register", post(registration::register))
+        .route("/api/*path", any(api_not_found))
         .route("/health", get(health))
         .merge(protected_auth_routes)
         .layer(TraceLayer::new_for_http())
-        .with_state(state)
+        .with_state(state.clone());
+
+    match state.static_dir.clone() {
+        Some(static_dir) => router.fallback_service(ServeDir::new(&static_dir).not_found_service(
+            ServeFile::new(static_dir.join("index.html")),
+        )),
+        None => router,
+    }
+}
+
+async fn api_not_found() -> (StatusCode, Json<ErrorResponse>) {
+    (
+        StatusCode::NOT_FOUND,
+        Json(ErrorResponse { error: "not found" }),
+    )
 }
 
 async fn health(
@@ -198,6 +217,7 @@ mod tests {
     use crate::config::DatabaseConfig;
     use crate::email::EmailService;
     use crate::{app, AppState};
+    use std::path::PathBuf;
     use sqlx::postgres::PgPoolOptions;
 
     #[test]
@@ -225,6 +245,27 @@ mod tests {
             auth: None,
             email: EmailService::new(None),
             self_url: Some("https://splitstreak.example.test/".to_owned()),
+            static_dir: None,
+        };
+
+        let _router = app(state);
+    }
+
+    #[tokio::test]
+    async fn app_builds_with_static_frontend_fallback() {
+        let db = match PgPoolOptions::new()
+            .max_connections(1)
+            .connect_lazy("postgres://user:password@localhost/splitstreak")
+        {
+            Ok(pool) => pool,
+            Err(error) => panic!("lazy pool should not connect to construct app: {error}"),
+        };
+        let state = AppState {
+            db,
+            auth: None,
+            email: EmailService::new(None),
+            self_url: Some("https://splitstreak.example.test/".to_owned()),
+            static_dir: Some(PathBuf::from("frontend/dist")),
         };
 
         let _router = app(state);

@@ -8,6 +8,8 @@
   "scripts": {
     "dev": "concurrently -n api,web -c blue,green \"cargo run --manifest-path backend/Cargo.toml\" \"npm run dev --workspace frontend\"",
     "build": "npm run build --workspace frontend && cargo build --manifest-path backend/Cargo.toml",
+    "self-hosted:build": "sh scripts/build-self-hosted.sh",
+    "self-hosted:run": "sh scripts/run-self-hosted.sh",
     "typecheck": "npm run typecheck --workspace frontend",
     "lint": "npm run lint --workspace frontend && cargo clippy --manifest-path backend/Cargo.toml --all-targets -- -D warnings",
     "format": "prettier --write \"**/*.{css,html,json,md,ts,tsx}\" && cargo fmt --manifest-path backend/Cargo.toml",

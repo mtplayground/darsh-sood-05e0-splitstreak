@@ -1,5 +1,6 @@
 use std::env;
 use std::net::{IpAddr, Ipv4Addr, SocketAddr};
+use std::path::PathBuf;
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct Config {
@@ -15,6 +16,7 @@ pub struct Config {
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct AppConfig {
     pub self_url: Option<String>,
+    pub static_dir: Option<PathBuf>,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -58,6 +60,7 @@ impl Config {
 
         let app = AppConfig {
             self_url: read_optional_env("SELF_URL")?,
+            static_dir: read_optional_env("STATIC_DIR")?.map(PathBuf::from),
         };
         let auth = read_auth_config()?;
         let database_url = read_required_env("DATABASE_URL")?;
