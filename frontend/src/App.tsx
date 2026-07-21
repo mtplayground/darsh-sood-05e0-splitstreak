@@ -2,13 +2,14 @@ import React from 'react';
 
 import { AuthProvider } from './auth/AuthContext';
 import { useAuth } from './auth/useAuth';
+import { HistoryScreen } from './HistoryScreen';
 import { HomeDashboard } from './HomeDashboard';
 import { LogScreen } from './logging/LogScreen';
 import { SplitsLibrary } from './SplitsLibrary';
 import { SyncStatusIndicator } from './SyncStatus';
 
 type AuthPanel = 'login' | 'register';
-type AuthenticatedView = 'home' | 'log' | 'splits';
+type AuthenticatedView = 'home' | 'log' | 'history' | 'splits';
 
 export function App() {
   return (
@@ -252,6 +253,16 @@ function AuthenticatedApp() {
             Log
           </button>
           <button
+            aria-current={view === 'history' ? 'page' : undefined}
+            className={
+              view === 'history' ? 'nav-button nav-button--active' : 'nav-button'
+            }
+            onClick={() => setView('history')}
+            type="button"
+          >
+            History
+          </button>
+          <button
             aria-current={view === 'splits' ? 'page' : undefined}
             className={
               view === 'splits' ? 'nav-button nav-button--active' : 'nav-button'
@@ -276,6 +287,7 @@ function AuthenticatedApp() {
         <HomeDashboard onQuickStart={() => setView('log')} userSub={user.sub} />
       )}
       {view === 'log' && <LogScreen userSub={user.sub} />}
+      {view === 'history' && <HistoryScreen />}
       {view === 'splits' && <SplitsLibrary onStartLogging={() => setView('log')} />}
 
       <section
@@ -315,6 +327,10 @@ function AuthenticatedApp() {
 function viewTitle(view: AuthenticatedView) {
   if (view === 'log') {
     return 'Log workout';
+  }
+
+  if (view === 'history') {
+    return 'History';
   }
 
   if (view === 'splits') {
