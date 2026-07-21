@@ -17,6 +17,7 @@ mod registration;
 #[allow(dead_code)]
 pub mod split_templates;
 mod split_selection;
+mod splits_library;
 mod sync;
 #[allow(dead_code)]
 pub mod users;
@@ -136,6 +137,7 @@ fn app(state: AppState) -> Router {
     Router::new()
         .route("/api/health", get(health))
         .route("/api/exercises/search", get(exercise_search::search))
+        .route("/api/splits/templates", get(splits_library::list))
         .route("/api/auth/login", get(login::redirect_to_login))
         .route(
             "/api/auth/password-reset",
