@@ -643,6 +643,17 @@ p {
   font-weight: 900;
 }
 
+.sync-status {
+  display: inline-block;
+  margin-left: 8px;
+  border-radius: 999px;
+  padding: 3px 8px;
+  background: #fff0cf;
+  color: #805300;
+  font-size: 0.72rem;
+  font-weight: 900;
+}
+
 .recent-sets strong,
 .empty-state {
   color: #46535f;

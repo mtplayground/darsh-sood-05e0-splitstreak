@@ -1,16 +1,15 @@
 import React from 'react';
 
+import { ApiError, type ExerciseSearchItem, redirectToLogin } from '../apiClient';
 import {
-  ApiError,
-  type CardioEntry as CardioRecord,
-  type ExerciseSearchItem,
-  type StrengthSet,
-  type WorkoutSession,
-  addCardioEntry,
-  addStrengthSet,
-  createWorkoutSession,
-  redirectToLogin
-} from '../apiClient';
+  addLocalCardioEntry,
+  addLocalStrengthEntry,
+  ensureTodayLocalSession,
+  getPendingMutationCount,
+  getTodayLocalEntries,
+  type LocalWorkoutEntry
+} from '../localStore';
+import { syncQueuedMutations } from '../syncQueue';
 import { CardioEntry, type CardioEntrySubmission } from './CardioEntry';
 import { ExerciseSearch } from './ExerciseSearch';
 import { SetEntry, type SetDraft } from './SetEntry';
@@ -21,6 +20,7 @@ type RecentEntry = {
   detail: string;
   id: string;
   label: string;
+  syncStatus: string;
 };
 
 const initialDraft: SetDraft = {
@@ -29,8 +29,12 @@ const initialDraft: SetDraft = {
   weightKg: 20
 };
 
-export function LogScreen() {
-  const [session, setSession] = React.useState<WorkoutSession | null>(null);
+type LogScreenProps = {
+  userSub: string;
+};
+
+export function LogScreen({ userSub }: LogScreenProps) {
+  const [sessionClientId, setSessionClientId] = React.useState<string | null>(null);
   const [selectedExercise, setSelectedExercise] =
     React.useState<ExerciseSearchItem | null>(null);
   const [entryMode, setEntryMode] = React.useState<EntryMode>('strength');
@@ -39,13 +43,70 @@ export function LogScreen() {
   const [message, setMessage] = React.useState<string | null>(null);
   const [isSaving, setIsSaving] = React.useState(false);
 
-  async function getActiveSession() {
-    const activeSession = session ?? (await createWorkoutSession()).session;
-    if (!session) {
-      setSession(activeSession);
+  const refreshLocalEntries = React.useCallback(() => {
+    const localEntries = getTodayLocalEntries(userSub);
+    setRecentEntries(localEntries.map(toRecentEntry));
+    setSessionClientId(localEntries[0]?.clientSessionId ?? null);
+  }, [userSub]);
+
+  const attemptSync = React.useCallback(
+    async (successMessage?: string) => {
+      try {
+        const result = await syncQueuedMutations(userSub);
+        refreshLocalEntries();
+        const pending = result.pending;
+        if (successMessage) {
+          setMessage(
+            pending > 0 ? `${successMessage} ${pending} pending sync.` : successMessage
+          );
+        } else if (pending > 0) {
+          setMessage(`${pending} pending sync.`);
+        }
+      } catch (caught) {
+        if (caught instanceof ApiError && caught.status === 401) {
+          redirectToLogin(caught.loginUrl);
+          return;
+        }
+
+        const pending = getPendingMutationCount(userSub);
+        setMessage(
+          pending > 0
+            ? `${pending} pending sync.`
+            : caught instanceof Error
+              ? caught.message
+              : 'Sync failed.'
+        );
+      }
+    },
+    [refreshLocalEntries, userSub]
+  );
+
+  React.useEffect(() => {
+    refreshLocalEntries();
+    void attemptSync();
+
+    function handleOnline() {
+      void attemptSync();
     }
 
-    return activeSession;
+    window.addEventListener('online', handleOnline);
+    window.addEventListener('splitstreak-local-workouts-updated', refreshLocalEntries);
+    return () => {
+      window.removeEventListener('online', handleOnline);
+      window.removeEventListener(
+        'splitstreak-local-workouts-updated',
+        refreshLocalEntries
+      );
+    };
+  }, [attemptSync, refreshLocalEntries]);
+
+  function getActiveSession() {
+    const { session } = ensureTodayLocalSession(userSub);
+    if (sessionClientId !== session.clientId) {
+      setSessionClientId(session.clientId);
+    }
+
+    return session;
   }
 
   async function handleAddSet() {
@@ -58,26 +119,27 @@ export function LogScreen() {
     setMessage(null);
     try {
       const activeSession = await getActiveSession();
-      const response = await addStrengthSet(activeSession.id, {
+      const payload = {
         exercise_id: selectedExercise.id,
         reps: draft.reps,
         set_number: draft.setNumber,
         weight_kg: draft.weightKg
-      });
+      };
+      addLocalStrengthEntry(
+        userSub,
+        activeSession.clientId,
+        selectedExercise.name,
+        formatStrengthPayload(payload),
+        payload
+      );
 
-      setRecentEntries((entries) => [
-        {
-          detail: formatStrengthSet(response.strength_set),
-          id: `strength-${response.strength_set.id}`,
-          label: selectedExercise.name
-        },
-        ...entries
-      ]);
+      refreshLocalEntries();
       setDraft((current) => ({
         ...current,
         setNumber: Math.min(200, current.setNumber + 1)
       }));
-      setMessage('Set logged.');
+      setMessage('Set saved locally.');
+      await attemptSync('Set logged.');
     } catch (caught) {
       if (caught instanceof ApiError && caught.status === 401) {
         redirectToLogin(caught.loginUrl);
@@ -95,17 +157,17 @@ export function LogScreen() {
     setMessage(null);
     try {
       const activeSession = await getActiveSession();
-      const response = await addCardioEntry(activeSession.id, submission.payload);
+      addLocalCardioEntry(
+        userSub,
+        activeSession.clientId,
+        submission.exerciseName,
+        formatCardioPayload(submission.payload),
+        submission.payload
+      );
 
-      setRecentEntries((entries) => [
-        {
-          detail: formatCardioEntry(response.cardio_entry),
-          id: `cardio-${response.cardio_entry.id}`,
-          label: submission.exerciseName
-        },
-        ...entries
-      ]);
-      setMessage('Cardio logged.');
+      refreshLocalEntries();
+      setMessage('Cardio saved locally.');
+      await attemptSync('Cardio logged.');
     } catch (caught) {
       if (caught instanceof ApiError && caught.status === 401) {
         redirectToLogin(caught.loginUrl);
@@ -190,7 +252,12 @@ export function LogScreen() {
           <ol className="recent-sets">
             {recentEntries.map((item) => (
               <li key={item.id}>
-                <span>{item.label}</span>
+                <span>
+                  {item.label}
+                  {item.syncStatus !== 'synced' && (
+                    <small className="sync-status">Sync pending</small>
+                  )}
+                </span>
                 <strong>{item.detail}</strong>
               </li>
             ))}
@@ -201,23 +268,36 @@ export function LogScreen() {
   );
 }
 
-function formatStrengthSet(set: StrengthSet) {
-  return `${set.set_number} x ${set.reps} @ ${set.weight_kg} kg`;
+function toRecentEntry(entry: LocalWorkoutEntry): RecentEntry {
+  return {
+    detail: entry.detail,
+    id: entry.clientId,
+    label: entry.exerciseName,
+    syncStatus: entry.syncStatus
+  };
 }
 
-function formatCardioEntry(entry: CardioRecord) {
-  const parts = [`${Math.round(entry.duration_seconds / 60)} min`];
-  if (entry.distance_meters !== null) {
-    parts.push(`${entry.distance_meters / 1000} km`);
+function formatStrengthPayload(payload: {
+  set_number: number;
+  reps: number;
+  weight_kg: number;
+}) {
+  return `${payload.set_number} x ${payload.reps} @ ${payload.weight_kg} kg`;
+}
+
+function formatCardioPayload(payload: CardioEntrySubmission['payload']) {
+  const parts = [`${Math.round(payload.duration_seconds / 60)} min`];
+  if (payload.distance_meters !== undefined) {
+    parts.push(`${payload.distance_meters / 1000} km`);
   }
-  if (entry.intensity_level !== null) {
-    parts.push(`RPE ${entry.intensity_level}`);
+  if (payload.intensity_level !== undefined) {
+    parts.push(`RPE ${payload.intensity_level}`);
   }
-  if (entry.speed_kph !== null) {
-    parts.push(`${entry.speed_kph} kph`);
+  if (payload.speed_kph !== undefined) {
+    parts.push(`${payload.speed_kph} kph`);
   }
-  if (entry.incline_percent !== null) {
-    parts.push(`${entry.incline_percent}% incline`);
+  if (payload.incline_percent !== undefined) {
+    parts.push(`${payload.incline_percent}% incline`);
   }
 
   return parts.join(', ');
