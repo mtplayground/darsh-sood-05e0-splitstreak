@@ -72,17 +72,44 @@ export type WorkoutSessionSummary = {
   cardio_entry_count: number;
 };
 
+export type StreakSummary = {
+  status: 'active' | 'no_active_split';
+  current_days: number;
+  current_streak_started_on: string | null;
+  last_missed_training_day: string | null;
+  today: string;
+  today_schedule_item: string | null;
+  today_is_training_day: boolean | null;
+};
+
 export type TodayDashboardResponse = {
   workout: WorkoutSessionSummary | null;
-  streak: {
-    status: 'active' | 'no_active_split';
-    current_days: number;
-    current_streak_started_on: string | null;
-    last_missed_training_day: string | null;
-    today: string;
-    today_schedule_item: string | null;
-    today_is_training_day: boolean | null;
-  };
+  streak: StreakSummary;
+};
+
+export type StreakCalendarDayStatus =
+  'before_active_split' | 'logged' | 'missed' | 'no_active_split' | 'pending' | 'rest';
+
+export type StreakCalendarDay = {
+  date: string;
+  schedule_item: string | null;
+  is_training_day: boolean | null;
+  logged: boolean;
+  status: StreakCalendarDayStatus;
+};
+
+export type StreakActiveSplit = {
+  template_slug: string;
+  template_name: string;
+  depth_level: SplitDepthLevel;
+  schedule: string[];
+  selected_on: string;
+};
+
+export type StreakCalendarResponse = {
+  summary: StreakSummary;
+  active_split: StreakActiveSplit | null;
+  days: StreakCalendarDay[];
 };
 
 export type SplitDepthLevel = 'simple' | 'advanced';
@@ -303,6 +330,14 @@ export async function createWorkoutSession(payload: CreateWorkoutSessionPayload 
 
 export async function fetchTodayDashboard() {
   return requestJson<TodayDashboardResponse>('/api/dashboard/today', {
+    method: 'GET'
+  });
+}
+
+export async function fetchStreakCalendar(days = 35) {
+  const params = new URLSearchParams({ days: days.toString() });
+
+  return requestJson<StreakCalendarResponse>(`/api/streak?${params.toString()}`, {
     method: 'GET'
   });
 }
