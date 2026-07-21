@@ -6,14 +6,19 @@ import {
   type HistorySession,
   type HistorySessionsResponse,
   type HistoryStrengthSet,
+  type StreakCalendarResponse,
+  fetchStreakCalendar,
   fetchHistorySessions,
   redirectToLogin
 } from './apiClient';
+import { TrendCharts } from './TrendCharts';
 
 const PAGE_SIZE = 10;
 
 export function HistoryScreen() {
   const [history, setHistory] = React.useState<HistorySessionsResponse | null>(null);
+  const [streakCalendar, setStreakCalendar] =
+    React.useState<StreakCalendarResponse | null>(null);
   const [isLoading, setIsLoading] = React.useState(true);
   const [isLoadingMore, setIsLoadingMore] = React.useState(false);
   const [message, setMessage] = React.useState<string | null>(null);
@@ -28,7 +33,10 @@ export function HistoryScreen() {
       setMessage(null);
 
       try {
-        const response = await fetchHistorySessions(PAGE_SIZE, offset);
+        const [response, calendarResponse] = await Promise.all([
+          fetchHistorySessions(PAGE_SIZE, offset),
+          append ? Promise.resolve(null) : fetchStreakCalendar()
+        ]);
         setHistory((current) =>
           append && current
             ? {
@@ -37,6 +45,9 @@ export function HistoryScreen() {
               }
             : response
         );
+        if (calendarResponse) {
+          setStreakCalendar(calendarResponse);
+        }
       } catch (caught) {
         if (caught instanceof ApiError && caught.status === 401) {
           redirectToLogin(caught.loginUrl);
@@ -78,6 +89,12 @@ export function HistoryScreen() {
           Refresh
         </button>
       </div>
+
+      <TrendCharts
+        isLoading={isLoading}
+        sessions={sessions}
+        streakDays={streakCalendar?.days ?? []}
+      />
 
       {isLoading ? (
         <p className="empty-state" aria-live="polite">
