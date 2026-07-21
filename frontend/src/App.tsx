@@ -4,6 +4,7 @@ import { AuthProvider } from './auth/AuthContext';
 import { useAuth } from './auth/useAuth';
 import { HomeDashboard } from './HomeDashboard';
 import { LogScreen } from './logging/LogScreen';
+import { SyncStatusIndicator } from './SyncStatus';
 
 type AuthPanel = 'login' | 'register';
 type AuthenticatedView = 'home' | 'log';
@@ -250,6 +251,7 @@ function AuthenticatedApp() {
             Log
           </button>
         </nav>
+        <SyncStatusIndicator userSub={user.sub} />
         {user.picture_url ? (
           <img alt="" className="avatar" src={user.picture_url} />
         ) : (
