@@ -22,6 +22,8 @@ mod splits_library;
 mod streak_handler;
 mod streaks;
 mod sync;
+#[cfg(test)]
+mod e2e;
 #[allow(dead_code)]
 pub mod users;
 #[allow(dead_code)]
