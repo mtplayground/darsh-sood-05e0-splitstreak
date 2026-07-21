@@ -2,11 +2,15 @@ import React from 'react';
 
 import {
   ApiError,
+  type StreakCalendarResponse,
   type TodayDashboardResponse,
+  fetchStreakCalendar,
   fetchTodayDashboard,
   redirectToLogin
 } from './apiClient';
 import { getTodayLocalSummary, type TodayLocalSummary } from './localStore';
+import { StreakCalendar } from './StreakCalendar';
+import { StreakIndicator } from './StreakIndicator';
 
 type HomeDashboardProps = {
   onQuickStart: () => void;
@@ -15,6 +19,8 @@ type HomeDashboardProps = {
 
 export function HomeDashboard({ onQuickStart, userSub }: HomeDashboardProps) {
   const [dashboard, setDashboard] = React.useState<TodayDashboardResponse | null>(null);
+  const [streakCalendar, setStreakCalendar] =
+    React.useState<StreakCalendarResponse | null>(null);
   const [localSummary, setLocalSummary] = React.useState<TodayLocalSummary>(() =>
     getTodayLocalSummary(userSub)
   );
@@ -30,7 +36,12 @@ export function HomeDashboard({ onQuickStart, userSub }: HomeDashboardProps) {
     setMessage(null);
     refreshLocalSummary();
     try {
-      setDashboard(await fetchTodayDashboard());
+      const [dashboardResponse, streakResponse] = await Promise.all([
+        fetchTodayDashboard(),
+        fetchStreakCalendar()
+      ]);
+      setDashboard(dashboardResponse);
+      setStreakCalendar(streakResponse);
     } catch (caught) {
       if (caught instanceof ApiError && caught.status === 401) {
         redirectToLogin(caught.loginUrl);
@@ -67,6 +78,7 @@ export function HomeDashboard({ onQuickStart, userSub }: HomeDashboardProps) {
   );
   const hasWorkout = Boolean(workout || localSummary.session);
   const totalEntries = strengthCount + cardioCount;
+  const streakSummary = streakCalendar?.summary ?? dashboard?.streak ?? null;
 
   return (
     <section className="dashboard-layout" aria-labelledby="dashboard-heading">
@@ -135,11 +147,8 @@ export function HomeDashboard({ onQuickStart, userSub }: HomeDashboardProps) {
           <p className="eyebrow">Streak</p>
           <h2 id="streak-heading">Current run</h2>
         </div>
-        <div className="streak-placeholder">
-          <strong>{dashboard?.streak.current_days ?? 0}</strong>
-          <span>days</span>
-        </div>
-        <p className="empty-state">Pending</p>
+        <StreakIndicator isLoading={isLoading} summary={streakSummary} />
+        <StreakCalendar days={streakCalendar?.days ?? []} isLoading={isLoading} />
       </aside>
     </section>
   );

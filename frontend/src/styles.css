@@ -471,24 +471,123 @@ p {
   margin-top: 0;
 }
 
-.streak-placeholder {
+.streak-counter {
   display: grid;
-  place-items: center;
+  gap: 10px;
   min-height: 148px;
   border-radius: 8px;
+  padding: 18px;
   background: #f8faf8;
 }
 
-.streak-placeholder strong {
+.streak-counter > div {
+  display: flex;
+  align-items: baseline;
+  gap: 8px;
+}
+
+.streak-counter strong {
   color: #7c3f58;
   font-size: 4rem;
   line-height: 1;
 }
 
-.streak-placeholder span {
+.streak-counter span {
   color: #46535f;
   font-weight: 900;
   text-transform: uppercase;
+}
+
+.streak-counter p {
+  margin-bottom: 0;
+  color: #46535f;
+  line-height: 1.45;
+}
+
+.streak-calendar {
+  display: grid;
+  gap: 12px;
+  margin-top: 16px;
+}
+
+.streak-calendar__grid {
+  display: grid;
+  grid-template-columns: repeat(7, minmax(0, 1fr));
+  gap: 6px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.streak-calendar__day {
+  display: grid;
+  place-items: center;
+  aspect-ratio: 1;
+  border: 1px solid #d5ddd4;
+  border-radius: 6px;
+  background: #f8faf8;
+  color: #46535f;
+  font-size: 0.74rem;
+  font-weight: 900;
+}
+
+.streak-calendar__day--logged {
+  border-color: #14613f;
+  background: #dcefe6;
+  color: #14613f;
+}
+
+.streak-calendar__day--rest {
+  border-color: #b7c2ba;
+  background: #eef4f0;
+  color: #46535f;
+}
+
+.streak-calendar__day--missed {
+  border-color: #a8373b;
+  background: #f7e2e3;
+  color: #a8373b;
+}
+
+.streak-calendar__day--pending {
+  border-color: #2d647d;
+  background: #edf6f8;
+  color: #1f5268;
+}
+
+.streak-calendar__day--before_active_split,
+.streak-calendar__day--no_active_split {
+  opacity: 0.45;
+}
+
+.streak-calendar__legend {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+  color: #46535f;
+  font-size: 0.78rem;
+  font-weight: 900;
+}
+
+.streak-calendar__legend span {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.streak-calendar__key {
+  width: 10px;
+  height: 10px;
+  border-radius: 3px;
+  background: #dcefe6;
+}
+
+.streak-calendar__key--rest {
+  background: #eef4f0;
+}
+
+.streak-calendar__key--missed {
+  background: #f7e2e3;
 }
 
 .log-layout {
