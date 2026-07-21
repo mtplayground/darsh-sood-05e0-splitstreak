@@ -1,6 +1,10 @@
 import React from 'react';
 
-import { ApiError, type ExerciseSearchItem, redirectToLogin } from '../apiClient';
+import {
+  getUserFacingErrorMessage,
+  redirectIfAuthError,
+  type ExerciseSearchItem
+} from '../apiClient';
 import {
   addLocalCardioEntry,
   addLocalStrengthEntry,
@@ -63,8 +67,7 @@ export function LogScreen({ userSub }: LogScreenProps) {
           setMessage(`${pending} pending sync.`);
         }
       } catch (caught) {
-        if (caught instanceof ApiError && caught.status === 401) {
-          redirectToLogin(caught.loginUrl);
+        if (redirectIfAuthError(caught)) {
           return;
         }
 
@@ -72,9 +75,7 @@ export function LogScreen({ userSub }: LogScreenProps) {
         setMessage(
           pending > 0
             ? `${pending} pending sync.`
-            : caught instanceof Error
-              ? caught.message
-              : 'Sync failed.'
+            : getUserFacingErrorMessage(caught, 'Sync failed.')
         );
       }
     },
@@ -141,12 +142,11 @@ export function LogScreen({ userSub }: LogScreenProps) {
       setMessage('Set saved locally.');
       await attemptSync('Set logged.');
     } catch (caught) {
-      if (caught instanceof ApiError && caught.status === 401) {
-        redirectToLogin(caught.loginUrl);
+      if (redirectIfAuthError(caught)) {
         return;
       }
 
-      setMessage(caught instanceof Error ? caught.message : 'Set could not be logged.');
+      setMessage(getUserFacingErrorMessage(caught, 'Set could not be logged.'));
     } finally {
       setIsSaving(false);
     }
@@ -169,14 +169,11 @@ export function LogScreen({ userSub }: LogScreenProps) {
       setMessage('Cardio saved locally.');
       await attemptSync('Cardio logged.');
     } catch (caught) {
-      if (caught instanceof ApiError && caught.status === 401) {
-        redirectToLogin(caught.loginUrl);
+      if (redirectIfAuthError(caught)) {
         return;
       }
 
-      setMessage(
-        caught instanceof Error ? caught.message : 'Cardio could not be logged.'
-      );
+      setMessage(getUserFacingErrorMessage(caught, 'Cardio could not be logged.'));
     } finally {
       setIsSaving(false);
     }

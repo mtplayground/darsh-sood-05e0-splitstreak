@@ -1,6 +1,6 @@
 import React from 'react';
 
-import { ApiError, redirectToLogin } from './apiClient';
+import { redirectIfAuthError } from './apiClient';
 import { getLocalSyncSnapshot } from './localStore';
 import { syncQueuedMutations, syncQueueStatusEvent } from './syncQueue';
 
@@ -58,11 +58,7 @@ export function SyncStatusIndicator({ userSub }: SyncStatusIndicatorProps) {
       return;
     }
 
-    void syncQueuedMutations(userSub).catch((caught) => {
-      if (caught instanceof ApiError && caught.status === 401) {
-        redirectToLogin(caught.loginUrl);
-      }
-    });
+    void syncQueuedMutations(userSub).catch(redirectIfAuthError);
   }, [isOnline, isSyncing, snapshot.pendingCount, userSub]);
 
   const status = getDisplayStatus(isOnline, isSyncing, snapshot);

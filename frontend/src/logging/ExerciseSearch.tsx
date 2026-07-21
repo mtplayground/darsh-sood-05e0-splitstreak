@@ -1,7 +1,10 @@
 import React from 'react';
 
-import type { ExerciseSearchItem } from '../apiClient';
-import { searchExercises } from '../apiClient';
+import {
+  getUserFacingErrorMessage,
+  searchExercises,
+  type ExerciseSearchItem
+} from '../apiClient';
 
 type ExerciseSearchProps = {
   disabled?: boolean;
@@ -55,7 +58,7 @@ export function ExerciseSearch({
         .catch((caught) => {
           if (!abortController.signal.aborted) {
             setResults([]);
-            setError(caught instanceof Error ? caught.message : 'Search failed');
+            setError(getUserFacingErrorMessage(caught, 'Search failed'));
           }
         })
         .finally(() => {

@@ -1,4 +1,9 @@
-import { ApiError, syncOfflineBatch, type SyncBatchPayload } from './apiClient';
+import {
+  isAuthenticationError,
+  isNetworkError,
+  syncOfflineBatch,
+  type SyncBatchPayload
+} from './apiClient';
 import {
   applySyncedEntry,
   applySyncedSession,
@@ -118,8 +123,16 @@ async function syncQueuedMutationsInternal(userSub: string): Promise<SyncQueueRe
           };
         }
       } catch (caught) {
-        if (caught instanceof ApiError && caught.status === 401) {
+        if (isAuthenticationError(caught)) {
           throw caught;
+        }
+
+        if (isNetworkError(caught)) {
+          return {
+            attempted,
+            synced,
+            pending: loadLocalWorkoutState(userSub).queue.length
+          };
         }
 
         markMutationFailed(userSub, mutation.id);

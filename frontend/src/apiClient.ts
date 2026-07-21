@@ -307,19 +307,54 @@ export type SyncBatchResponse = {
 };
 
 export class ApiError extends Error {
+  readonly code: string;
   readonly loginUrl?: string;
+  readonly rawMessage: string | null;
   readonly status: number;
 
-  constructor(status: number, message: string, loginUrl?: string) {
+  constructor(
+    status: number,
+    message: string,
+    loginUrl?: string,
+    code = 'request_failed',
+    rawMessage: string | null = null
+  ) {
     super(message);
     this.name = 'ApiError';
+    this.code = code;
     this.status = status;
     this.loginUrl = loginUrl;
+    this.rawMessage = rawMessage;
   }
 }
 
 export function redirectToLogin(loginUrl?: string) {
   window.location.assign(loginUrl ?? '/api/auth/login');
+}
+
+export function isAuthenticationError(caught: unknown): caught is ApiError {
+  return caught instanceof ApiError && caught.status === 401;
+}
+
+export function isNetworkError(caught: unknown): caught is ApiError {
+  return caught instanceof ApiError && caught.status === 0;
+}
+
+export function redirectIfAuthError(caught: unknown) {
+  if (!isAuthenticationError(caught)) {
+    return false;
+  }
+
+  redirectToLogin(caught.loginUrl);
+  return true;
+}
+
+export function getUserFacingErrorMessage(caught: unknown, fallback: string) {
+  if (caught instanceof ApiError) {
+    return caught.message;
+  }
+
+  return fallback;
 }
 
 export async function fetchSession() {
@@ -470,28 +505,30 @@ export async function syncOfflineBatch(payload: SyncBatchPayload) {
 }
 
 async function requestJson<T>(path: string, init: RequestInit): Promise<T> {
-  const response = await fetch(path, {
-    ...init,
-    credentials: 'include',
-    headers: {
-      Accept: 'application/json',
-      'Content-Type': 'application/json',
-      ...init.headers
-    }
-  });
+  let response: Response;
+  try {
+    response = await fetch(path, {
+      ...init,
+      credentials: 'include',
+      headers: {
+        Accept: 'application/json',
+        'Content-Type': 'application/json',
+        ...init.headers
+      }
+    });
+  } catch {
+    throw new ApiError(
+      0,
+      'Connection lost. Your changes are saved locally and will sync when you are back online.',
+      undefined,
+      'network_error'
+    );
+  }
 
   const payload = await readJson(response);
 
   if (!response.ok) {
-    const errorPayload = payload as Partial<{
-      error: string;
-      login_url: string;
-    }> | null;
-    throw new ApiError(
-      response.status,
-      errorPayload?.error ?? `Request failed with ${response.status}`,
-      errorPayload?.login_url
-    );
+    throw buildApiError(response.status, payload);
   }
 
   return payload as T;
@@ -503,5 +540,77 @@ async function readJson(response: Response) {
     return null;
   }
 
-  return response.json();
+  try {
+    return await response.json();
+  } catch {
+    return null;
+  }
+}
+
+function buildApiError(status: number, payload: unknown) {
+  const errorPayload = payload as Partial<{
+    code: string;
+    error: string;
+    login_url: string;
+    message: string;
+  }> | null;
+  const rawMessage =
+    typeof errorPayload?.message === 'string'
+      ? errorPayload.message
+      : typeof errorPayload?.error === 'string'
+        ? errorPayload.error
+        : null;
+  const code =
+    typeof errorPayload?.code === 'string'
+      ? errorPayload.code
+      : normalizeErrorCode(errorPayload?.error);
+
+  return new ApiError(
+    status,
+    friendlyErrorMessage(status, code, rawMessage),
+    errorPayload?.login_url,
+    code,
+    rawMessage
+  );
+}
+
+function normalizeErrorCode(error: unknown) {
+  if (typeof error !== 'string' || error.trim().length === 0) {
+    return 'request_failed';
+  }
+
+  return error
+    .trim()
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, '_')
+    .replace(/^_+|_+$/g, '');
+}
+
+function friendlyErrorMessage(status: number, code: string, rawMessage: string | null) {
+  if (status === 401) {
+    return 'Sign in to continue.';
+  }
+  if (status === 403) {
+    return 'You do not have access to that action.';
+  }
+  if (status === 404) {
+    return 'That workout data was not found. Refresh and try again.';
+  }
+  if (status === 429) {
+    return 'Too many requests. Try again shortly.';
+  }
+  if (status >= 500) {
+    return 'Something went wrong on our side. Try again shortly.';
+  }
+
+  if (code.includes('sync')) {
+    return 'Some saved workout data could not sync. Check the entry and try again.';
+  }
+  if (code.includes('logging')) {
+    return 'Check the workout details and try again.';
+  }
+
+  return rawMessage && rawMessage.length <= 140
+    ? rawMessage
+    : 'Check the request and try again.';
 }

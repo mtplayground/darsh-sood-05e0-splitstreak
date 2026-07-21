@@ -1,5 +1,6 @@
 import React from 'react';
 
+import { getUserFacingErrorMessage } from './apiClient';
 import { AuthProvider } from './auth/AuthContext';
 import { useAuth } from './auth/useAuth';
 import { HistoryScreen } from './HistoryScreen';
@@ -49,7 +50,7 @@ function AuthGate() {
       setFormMessage('Registration is complete. Checking your session...');
       await auth.refresh();
     } catch (error) {
-      setFormMessage(error instanceof Error ? error.message : 'Registration failed');
+      setFormMessage(getUserFacingErrorMessage(error, 'Registration failed'));
     } finally {
       setIsSubmitting(false);
     }
@@ -66,9 +67,7 @@ function AuthGate() {
       );
       setEmail('');
     } catch (error) {
-      setFormMessage(
-        error instanceof Error ? error.message : 'Recovery request failed'
-      );
+      setFormMessage(getUserFacingErrorMessage(error, 'Recovery request failed'));
     } finally {
       setIsSubmitting(false);
     }
@@ -199,7 +198,7 @@ function AuthenticatedApp() {
         setMessage(response.delivery.reason);
       }
     } catch (error) {
-      setMessage(error instanceof Error ? error.message : 'Verification email failed');
+      setMessage(getUserFacingErrorMessage(error, 'Verification email failed'));
     } finally {
       setIsBusy(false);
     }
@@ -217,7 +216,7 @@ function AuthenticatedApp() {
       );
       await auth.refresh();
     } catch (error) {
-      setMessage(error instanceof Error ? error.message : 'Verification check failed');
+      setMessage(getUserFacingErrorMessage(error, 'Verification check failed'));
     } finally {
       setIsBusy(false);
     }

@@ -70,6 +70,7 @@ pub(crate) async fn current_user_from_cookie_header(
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub(crate) struct AuthRejection {
     status: StatusCode,
+    code: &'static str,
     message: &'static str,
     login_url: Option<String>,
 }
@@ -78,7 +79,8 @@ impl AuthRejection {
     fn auth_not_configured() -> Self {
         Self {
             status: StatusCode::SERVICE_UNAVAILABLE,
-            message: "auth service is not configured",
+            code: "auth_not_configured",
+            message: "Sign-in is temporarily unavailable.",
             login_url: None,
         }
     }
@@ -86,7 +88,8 @@ impl AuthRejection {
     fn authentication_required(login_url: String) -> Self {
         Self {
             status: StatusCode::UNAUTHORIZED,
-            message: "authentication required",
+            code: "authentication_required",
+            message: "Sign in to continue.",
             login_url: Some(login_url),
         }
     }
@@ -94,7 +97,8 @@ impl AuthRejection {
     fn invalid_session(login_url: String) -> Self {
         Self {
             status: StatusCode::UNAUTHORIZED,
-            message: "invalid session",
+            code: "invalid_session",
+            message: "Your session expired. Sign in again.",
             login_url: Some(login_url),
         }
     }
@@ -102,13 +106,18 @@ impl AuthRejection {
     fn authentication_failed() -> Self {
         Self {
             status: StatusCode::INTERNAL_SERVER_ERROR,
-            message: "authentication failed",
+            code: "authentication_failed",
+            message: "Sign-in failed. Try again shortly.",
             login_url: None,
         }
     }
 
     pub(crate) fn status(&self) -> StatusCode {
         self.status
+    }
+
+    pub(crate) fn code(&self) -> &'static str {
+        self.code
     }
 
     pub(crate) fn message(&self) -> &'static str {
@@ -123,13 +132,15 @@ impl AuthRejection {
 impl IntoResponse for AuthRejection {
     fn into_response(self) -> Response {
         let status = self.status();
-        let error = self.message();
+        let error = self.code();
+        let message = self.message();
         let login_url = self.login_url().map(ToOwned::to_owned);
 
         (
             status,
             Json(AuthErrorResponse {
                 error,
+                message,
                 login_url,
             }),
         )
@@ -140,6 +151,7 @@ impl IntoResponse for AuthRejection {
 #[derive(Debug, Serialize)]
 struct AuthErrorResponse {
     error: &'static str,
+    message: &'static str,
     #[serde(skip_serializing_if = "Option::is_none")]
     login_url: Option<String>,
 }
@@ -156,7 +168,8 @@ mod tests {
         );
 
         assert_eq!(rejection.status(), StatusCode::UNAUTHORIZED);
-        assert_eq!(rejection.message(), "authentication required");
+        assert_eq!(rejection.code(), "authentication_required");
+        assert_eq!(rejection.message(), "Sign in to continue.");
         assert_eq!(
             rejection.login_url(),
             Some("https://auth.mctai.app/login?app_token=app&return_to=https%3A%2F%2Fapp.test%2F")
@@ -168,7 +181,8 @@ mod tests {
         let rejection = AuthRejection::auth_not_configured();
 
         assert_eq!(rejection.status(), StatusCode::SERVICE_UNAVAILABLE);
-        assert_eq!(rejection.message(), "auth service is not configured");
+        assert_eq!(rejection.code(), "auth_not_configured");
+        assert_eq!(rejection.message(), "Sign-in is temporarily unavailable.");
         assert_eq!(rejection.login_url(), None);
     }
 }

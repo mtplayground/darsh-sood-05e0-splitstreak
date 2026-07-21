@@ -355,20 +355,22 @@ impl SyncApiError {
                 (
                     StatusCode::INTERNAL_SERVER_ERROR,
                     Json(SyncErrorResponse {
-                        error: "sync failed",
+                        error: "sync_failed",
+                        message: "Offline changes could not sync right now. Try again shortly.",
                     }),
                 )
             }
             Self::Validation(message) => (
                 StatusCode::BAD_REQUEST,
-                Json(SyncErrorResponse { error: message }),
+                Json(SyncErrorResponse::validation(message)),
             ),
             Self::ValidationModel(error) => {
                 tracing::debug!(%error, "sync reconciliation validation failed");
                 (
                     StatusCode::BAD_REQUEST,
                     Json(SyncErrorResponse {
-                        error: "invalid sync payload",
+                        error: "invalid_sync_payload",
+                        message: "Some saved workout data is invalid. Check the entry and try again.",
                     }),
                 )
             }
@@ -453,6 +455,30 @@ pub struct SyncCardioEntryResult {
 #[derive(Debug, Serialize)]
 pub struct SyncErrorResponse {
     pub error: &'static str,
+    pub message: &'static str,
+}
+
+impl SyncErrorResponse {
+    fn validation(message: &'static str) -> Self {
+        match message {
+            "sync batch is too large" => Self {
+                error: "sync_batch_too_large",
+                message: "Too many offline changes are queued. Sync a smaller batch and try again.",
+            },
+            "client_id is invalid" => Self {
+                error: "invalid_client_id",
+                message: "Some saved workout data has an invalid local ID. Recreate that entry and try again.",
+            },
+            "client session was not found" => Self {
+                error: "client_session_not_found",
+                message: "A saved entry is missing its workout session. Refresh and try again.",
+            },
+            _ => Self {
+                error: "invalid_sync_payload",
+                message: "Some saved workout data could not sync. Check the entry and try again.",
+            },
+        }
+    }
 }
 
 #[cfg(test)]
@@ -465,5 +491,16 @@ mod tests {
             validate_client_id(" "),
             Err(SyncApiError::Validation("client_id is invalid"))
         ));
+    }
+
+    #[test]
+    fn validation_errors_have_stable_codes_and_messages() {
+        let error = SyncErrorResponse::validation("client session was not found");
+
+        assert_eq!(error.error, "client_session_not_found");
+        assert_eq!(
+            error.message,
+            "A saved entry is missing its workout session. Refresh and try again."
+        );
     }
 }
