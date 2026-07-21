@@ -11,6 +11,7 @@ mod email;
 mod exercise_search;
 #[allow(dead_code)]
 pub mod exercises;
+mod history;
 mod logging;
 mod login;
 mod registration;
@@ -126,6 +127,7 @@ fn app(state: AppState) -> Router {
             post(logging::add_cardio_entry),
         )
         .route("/api/dashboard/today", get(dashboard::today))
+        .route("/api/history/sessions", get(history::list_sessions))
         .route("/api/streak", get(streak_handler::current))
         .route("/api/sync/reconcile", post(sync::reconcile))
         .route(
