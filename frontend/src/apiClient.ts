@@ -75,8 +75,13 @@ export type WorkoutSessionSummary = {
 export type TodayDashboardResponse = {
   workout: WorkoutSessionSummary | null;
   streak: {
-    status: 'pending';
-    current_days: number | null;
+    status: 'active' | 'no_active_split';
+    current_days: number;
+    current_streak_started_on: string | null;
+    last_missed_training_day: string | null;
+    today: string;
+    today_schedule_item: string | null;
+    today_is_training_day: boolean | null;
   };
 };
 

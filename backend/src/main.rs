@@ -18,6 +18,7 @@ mod registration;
 pub mod split_templates;
 mod split_selection;
 mod splits_library;
+mod streaks;
 mod sync;
 #[allow(dead_code)]
 pub mod users;
