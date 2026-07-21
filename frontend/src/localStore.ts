@@ -83,6 +83,12 @@ export type TodayLocalSummary = {
   pendingCount: number;
 };
 
+export type LocalSyncSnapshot = {
+  failedCount: number;
+  pendingCount: number;
+  unsyncedCount: number;
+};
+
 const storageVersion = 1;
 const keyPrefix = 'splitstreak.local-workouts.v1';
 
@@ -102,12 +108,12 @@ export function loadLocalWorkoutState(userSub: string): LocalWorkoutState {
       return emptyState();
     }
 
-    return {
+    return reconcileLocalWorkoutState({
       version: storageVersion,
       sessions: Array.isArray(parsed.sessions) ? parsed.sessions : [],
       entries: Array.isArray(parsed.entries) ? parsed.entries : [],
       queue: Array.isArray(parsed.queue) ? parsed.queue : []
-    };
+    });
   } catch {
     return emptyState();
   }
@@ -126,9 +132,13 @@ export function updateLocalWorkoutState(
   userSub: string,
   updater: (state: LocalWorkoutState) => LocalWorkoutState
 ) {
-  const nextState = updater(loadLocalWorkoutState(userSub));
+  const nextState = reconcileLocalWorkoutState(updater(loadLocalWorkoutState(userSub)));
   saveLocalWorkoutState(userSub, nextState);
   return nextState;
+}
+
+export function reconcileStoredWorkoutState(userSub: string) {
+  return updateLocalWorkoutState(userSub, (current) => current);
 }
 
 export function ensureTodayLocalSession(userSub: string): {
@@ -270,7 +280,16 @@ export function applySyncedSession(
           }
         : session
     ),
-    queue: current.queue.filter((item) => item.id !== mutationId)
+    queue: current.queue.filter((item) => {
+      if (item.id === mutationId) {
+        return false;
+      }
+      if (item.type === 'create_session') {
+        return item.clientSessionId !== clientSessionId;
+      }
+
+      return true;
+    })
   }));
 }
 
@@ -287,7 +306,16 @@ export function applySyncedEntry(
         ? { ...entry, serverId, syncStatus: 'synced' }
         : entry
     ),
-    queue: current.queue.filter((item) => item.id !== mutationId)
+    queue: current.queue.filter((item) => {
+      if (item.id === mutationId) {
+        return false;
+      }
+      if (item.type === 'create_session') {
+        return true;
+      }
+
+      return item.clientEntryId !== clientEntryId;
+    })
   }));
 }
 
@@ -347,6 +375,26 @@ export function getPendingMutationCount(userSub: string) {
   return loadLocalWorkoutState(userSub).queue.length;
 }
 
+export function getLocalSyncSnapshot(userSub: string): LocalSyncSnapshot {
+  const state = loadLocalWorkoutState(userSub);
+  const failedCount = state.entries.filter(
+    (entry) => entry.syncStatus === 'failed'
+  ).length;
+  const pendingCount = state.queue.length;
+  const unsyncedSessionCount = state.sessions.filter(
+    (session) => session.syncStatus !== 'synced'
+  ).length;
+  const unsyncedEntryCount = state.entries.filter(
+    (entry) => entry.syncStatus !== 'synced'
+  ).length;
+
+  return {
+    failedCount,
+    pendingCount,
+    unsyncedCount: unsyncedSessionCount + unsyncedEntryCount
+  };
+}
+
 function findTodaySession(state: LocalWorkoutState) {
   return state.sessions.find((session) => isToday(session.started_at)) ?? null;
 }
@@ -362,6 +410,118 @@ function emptyState(): LocalWorkoutState {
     entries: [],
     queue: []
   };
+}
+
+function reconcileLocalWorkoutState(state: LocalWorkoutState): LocalWorkoutState {
+  const sessions = dedupeSessions(state.sessions);
+  const entries = dedupeEntries(state.entries);
+  const sessionByClientId = new Map(
+    sessions.map((session) => [session.clientId, session])
+  );
+  const entryByClientId = new Map(entries.map((entry) => [entry.clientId, entry]));
+  const seenMutations = new Set<string>();
+  const queue = state.queue.filter((mutation) => {
+    const key = mutationKey(mutation);
+    if (seenMutations.has(key)) {
+      return false;
+    }
+    seenMutations.add(key);
+
+    if (mutation.type === 'create_session') {
+      const session = sessionByClientId.get(mutation.clientSessionId);
+      return Boolean(session && session.syncStatus !== 'synced');
+    }
+
+    const entry = entryByClientId.get(mutation.clientEntryId);
+    return Boolean(entry && entry.syncStatus !== 'synced');
+  });
+
+  return {
+    version: storageVersion,
+    sessions,
+    entries,
+    queue
+  };
+}
+
+function dedupeSessions(sessions: LocalWorkoutSession[]) {
+  const deduped: LocalWorkoutSession[] = [];
+  const indexByClientId = new Map<string, number>();
+  for (const session of sessions) {
+    const existingIndex = indexByClientId.get(session.clientId);
+    if (existingIndex === undefined) {
+      indexByClientId.set(session.clientId, deduped.length);
+      deduped.push(session);
+    } else {
+      deduped[existingIndex] = mergeSession(deduped[existingIndex], session);
+    }
+  }
+
+  return deduped;
+}
+
+function dedupeEntries(entries: LocalWorkoutEntry[]) {
+  const deduped: LocalWorkoutEntry[] = [];
+  const indexByClientId = new Map<string, number>();
+  for (const entry of entries) {
+    const existingIndex = indexByClientId.get(entry.clientId);
+    if (existingIndex === undefined) {
+      indexByClientId.set(entry.clientId, deduped.length);
+      deduped.push(entry);
+    } else {
+      deduped[existingIndex] = mergeEntry(deduped[existingIndex], entry);
+    }
+  }
+
+  return deduped;
+}
+
+function mergeSession(
+  existing: LocalWorkoutSession,
+  duplicate: LocalWorkoutSession
+): LocalWorkoutSession {
+  const serverId = existing.serverId ?? duplicate.serverId;
+  return {
+    ...existing,
+    serverId,
+    completed_at: existing.completed_at ?? duplicate.completed_at,
+    notes: existing.notes ?? duplicate.notes,
+    syncStatus: serverId ? 'synced' : mergeSyncStatus(existing, duplicate)
+  };
+}
+
+function mergeEntry(
+  existing: LocalWorkoutEntry,
+  duplicate: LocalWorkoutEntry
+): LocalWorkoutEntry {
+  const serverId = existing.serverId ?? duplicate.serverId;
+  return {
+    ...existing,
+    serverId,
+    syncStatus: serverId ? 'synced' : mergeSyncStatus(existing, duplicate)
+  };
+}
+
+function mergeSyncStatus(
+  existing: { syncStatus: SyncStatus },
+  duplicate: { syncStatus: SyncStatus }
+): SyncStatus {
+  if (existing.syncStatus === 'synced' || duplicate.syncStatus === 'synced') {
+    return 'synced';
+  }
+  if (existing.syncStatus === 'pending' || duplicate.syncStatus === 'pending') {
+    return 'pending';
+  }
+
+  return 'failed';
+}
+
+function mutationKey(mutation: LocalMutation) {
+  if (mutation.type === 'create_session') {
+    return `${mutation.type}:${mutation.clientSessionId}`;
+  }
+
+  return `${mutation.type}:${mutation.clientEntryId}`;
 }
 
 function storageKey(userSub: string) {

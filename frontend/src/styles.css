@@ -287,6 +287,42 @@ p {
   color: #ffffff;
 }
 
+.sync-indicator {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  min-height: 36px;
+  border: 1px solid #d5ddd4;
+  border-radius: 999px;
+  padding: 0 12px;
+  background: #ffffff;
+  color: #26323c;
+  font-size: 0.82rem;
+  font-weight: 900;
+  white-space: nowrap;
+}
+
+.sync-indicator__dot {
+  width: 9px;
+  height: 9px;
+  border-radius: 999px;
+  background: #14613f;
+}
+
+.sync-indicator--syncing .sync-indicator__dot {
+  background: #2d647d;
+  animation: pulse 900ms ease-in-out infinite;
+}
+
+.sync-indicator--pending .sync-indicator__dot {
+  background: #805300;
+}
+
+.sync-indicator--offline .sync-indicator__dot,
+.sync-indicator--failed .sync-indicator__dot {
+  background: #a8373b;
+}
+
 .avatar {
   width: 56px;
   height: 56px;
@@ -678,6 +714,13 @@ p {
   }
 }
 
+@keyframes pulse {
+  50% {
+    opacity: 0.35;
+    transform: scale(0.75);
+  }
+}
+
 @media (max-width: 760px) {
   .auth-layout {
     grid-template-columns: 1fr;
@@ -701,6 +744,10 @@ p {
   .app-nav {
     width: 100%;
     margin-left: 0;
+  }
+
+  .sync-indicator {
+    justify-self: start;
   }
 
   .app-nav button {
