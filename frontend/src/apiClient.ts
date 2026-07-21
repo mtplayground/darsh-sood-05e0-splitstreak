@@ -80,6 +80,41 @@ export type TodayDashboardResponse = {
   };
 };
 
+export type SplitDepthLevel = 'simple' | 'advanced';
+
+export type SplitTemplateItem = {
+  id: number;
+  slug: string;
+  name: string;
+  depth_level: SplitDepthLevel;
+  schedule: string[];
+  training_days_per_cycle: number;
+  rest_days_per_cycle: number;
+  rationale: string;
+};
+
+export type SplitsLibraryResponse = {
+  count: number;
+  templates: SplitTemplateItem[];
+};
+
+export type ActiveSplit = {
+  user_sub: string;
+  split_template_id: number;
+  template_slug: string;
+  template_name: string;
+  depth_level: SplitDepthLevel;
+  schedule: string[];
+  training_days_per_cycle: number;
+  rest_days_per_cycle: number;
+  selected_at: string;
+  updated_at: string;
+};
+
+export type ActiveSplitResponse = {
+  active_split: ActiveSplit | null;
+};
+
 export type StrengthSet = {
   id: number;
   session_id: number;
@@ -264,6 +299,33 @@ export async function createWorkoutSession(payload: CreateWorkoutSessionPayload 
 export async function fetchTodayDashboard() {
   return requestJson<TodayDashboardResponse>('/api/dashboard/today', {
     method: 'GET'
+  });
+}
+
+export async function fetchSplitTemplates(depth: SplitDepthLevel) {
+  const params = new URLSearchParams({
+    depth,
+    limit: '50'
+  });
+
+  return requestJson<SplitsLibraryResponse>(
+    `/api/splits/templates?${params.toString()}`,
+    {
+      method: 'GET'
+    }
+  );
+}
+
+export async function fetchActiveSplit() {
+  return requestJson<ActiveSplitResponse>('/api/splits/active', {
+    method: 'GET'
+  });
+}
+
+export async function selectActiveSplit(splitTemplateSlug: string) {
+  return requestJson<ActiveSplitResponse>('/api/splits/active', {
+    body: JSON.stringify({ split_template_slug: splitTemplateSlug }),
+    method: 'PUT'
   });
 }
 
