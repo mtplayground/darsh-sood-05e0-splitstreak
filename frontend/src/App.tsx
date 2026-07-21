@@ -260,9 +260,9 @@ function AuthenticatedApp() {
       </header>
 
       {view === 'home' ? (
-        <HomeDashboard onQuickStart={() => setView('log')} />
+        <HomeDashboard onQuickStart={() => setView('log')} userSub={user.sub} />
       ) : (
-        <LogScreen />
+        <LogScreen userSub={user.sub} />
       )}
 
       <section

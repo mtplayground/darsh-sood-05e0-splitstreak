@@ -6,19 +6,29 @@ import {
   fetchTodayDashboard,
   redirectToLogin
 } from './apiClient';
+import { getTodayLocalSummary, type TodayLocalSummary } from './localStore';
 
 type HomeDashboardProps = {
   onQuickStart: () => void;
+  userSub: string;
 };
 
-export function HomeDashboard({ onQuickStart }: HomeDashboardProps) {
+export function HomeDashboard({ onQuickStart, userSub }: HomeDashboardProps) {
   const [dashboard, setDashboard] = React.useState<TodayDashboardResponse | null>(null);
+  const [localSummary, setLocalSummary] = React.useState<TodayLocalSummary>(() =>
+    getTodayLocalSummary(userSub)
+  );
   const [message, setMessage] = React.useState<string | null>(null);
   const [isLoading, setIsLoading] = React.useState(true);
+
+  const refreshLocalSummary = React.useCallback(() => {
+    setLocalSummary(getTodayLocalSummary(userSub));
+  }, [userSub]);
 
   const loadDashboard = React.useCallback(async () => {
     setIsLoading(true);
     setMessage(null);
+    refreshLocalSummary();
     try {
       setDashboard(await fetchTodayDashboard());
     } catch (caught) {
@@ -33,15 +43,30 @@ export function HomeDashboard({ onQuickStart }: HomeDashboardProps) {
     } finally {
       setIsLoading(false);
     }
-  }, []);
+  }, [refreshLocalSummary]);
 
   React.useEffect(() => {
     void loadDashboard();
-  }, [loadDashboard]);
+    window.addEventListener('splitstreak-local-workouts-updated', refreshLocalSummary);
+    return () => {
+      window.removeEventListener(
+        'splitstreak-local-workouts-updated',
+        refreshLocalSummary
+      );
+    };
+  }, [loadDashboard, refreshLocalSummary]);
 
   const workout = dashboard?.workout ?? null;
-  const totalEntries =
-    (workout?.strength_set_count ?? 0) + (workout?.cardio_entry_count ?? 0);
+  const strengthCount = Math.max(
+    workout?.strength_set_count ?? 0,
+    localSummary.strengthSetCount
+  );
+  const cardioCount = Math.max(
+    workout?.cardio_entry_count ?? 0,
+    localSummary.cardioEntryCount
+  );
+  const hasWorkout = Boolean(workout || localSummary.session);
+  const totalEntries = strengthCount + cardioCount;
 
   return (
     <section className="dashboard-layout" aria-labelledby="dashboard-heading">
@@ -55,21 +80,24 @@ export function HomeDashboard({ onQuickStart }: HomeDashboardProps) {
           <p className="empty-state" aria-live="polite">
             Loading today...
           </p>
-        ) : workout ? (
+        ) : hasWorkout ? (
           <div className="today-workout">
             <div>
               <p className="dashboard-kicker">
-                Started {formatTime(workout.session.started_at)}
+                Started{' '}
+                {formatTime(
+                  workout?.session.started_at ??
+                    localSummary.session?.started_at ??
+                    new Date().toISOString()
+                )}
               </p>
               <h3>Workout in progress</h3>
-              <p>
-                {entrySummary(workout.strength_set_count, workout.cardio_entry_count)}
-              </p>
+              <p>{entrySummary(strengthCount, cardioCount)}</p>
             </div>
             <div className="dashboard-metrics" aria-label="Today workout totals">
               <Metric label="Entries" value={totalEntries.toString()} />
-              <Metric label="Strength" value={workout.strength_set_count.toString()} />
-              <Metric label="Cardio" value={workout.cardio_entry_count.toString()} />
+              <Metric label="Strength" value={strengthCount.toString()} />
+              <Metric label="Cardio" value={cardioCount.toString()} />
             </div>
           </div>
         ) : (
@@ -89,13 +117,16 @@ export function HomeDashboard({ onQuickStart }: HomeDashboardProps) {
 
         <div className="dashboard-actions">
           <button className="primary-action" onClick={onQuickStart} type="button">
-            {workout ? 'Continue logging' : 'Start workout'}
+            {hasWorkout ? 'Continue logging' : 'Start workout'}
           </button>
           <button disabled={isLoading} onClick={loadDashboard} type="button">
             Refresh
           </button>
         </div>
 
+        {localSummary.pendingCount > 0 && (
+          <p className="form-message">{localSummary.pendingCount} pending sync.</p>
+        )}
         {message && <p className="form-message form-message--error">{message}</p>}
       </div>
 

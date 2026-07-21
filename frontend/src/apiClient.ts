@@ -110,6 +110,11 @@ export type CreateSessionResponse = {
   session: WorkoutSession;
 };
 
+export type CreateWorkoutSessionPayload = {
+  notes?: string;
+  started_at?: string;
+};
+
 export type AddStrengthSetPayload = {
   exercise_id: number;
   set_number: number;
@@ -204,9 +209,9 @@ export async function searchExercises(
   );
 }
 
-export async function createWorkoutSession(notes?: string) {
+export async function createWorkoutSession(payload: CreateWorkoutSessionPayload = {}) {
   return requestJson<CreateSessionResponse>('/api/logging/sessions', {
-    body: JSON.stringify({ notes }),
+    body: JSON.stringify(payload),
     method: 'POST'
   });
 }
