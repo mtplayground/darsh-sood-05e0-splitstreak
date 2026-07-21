@@ -270,6 +270,7 @@ p {
 
 .app-nav {
   display: flex;
+  flex-wrap: wrap;
   gap: 8px;
   margin-left: auto;
 }
@@ -599,6 +600,7 @@ p {
 
 .log-workspace,
 .recent-panel,
+.history-screen,
 .splits-library,
 .split-guidance {
   border: 1px solid #d5ddd4;
@@ -608,6 +610,10 @@ p {
 }
 
 .log-workspace {
+  padding: 22px;
+}
+
+.history-screen {
   padding: 22px;
 }
 
@@ -802,6 +808,112 @@ p {
   line-height: 1.5;
 }
 
+.history-toolbar {
+  display: flex;
+  justify-content: space-between;
+  gap: 16px;
+  align-items: flex-start;
+}
+
+.history-toolbar button {
+  min-width: 104px;
+}
+
+.history-list {
+  display: grid;
+  gap: 14px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.history-card {
+  display: grid;
+  gap: 16px;
+  border: 1px solid #e3e8e1;
+  border-radius: 8px;
+  padding: 18px;
+  background: #fbfcfa;
+}
+
+.history-card__header {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(240px, 0.5fr);
+  gap: 16px;
+  align-items: start;
+}
+
+.history-card__header h3 {
+  margin: 0;
+  color: #12181f;
+  font-size: 1.3rem;
+}
+
+.history-card__metrics {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 8px;
+}
+
+.history-card__notes {
+  margin: 0;
+  border-left: 4px solid #7c3f58;
+  border-radius: 8px;
+  padding: 10px 12px;
+  background: #fbf8fa;
+  color: #46535f;
+  line-height: 1.5;
+}
+
+.history-card__body {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 14px;
+}
+
+.history-card__body section {
+  display: grid;
+  gap: 8px;
+  align-content: start;
+}
+
+.history-card__body h4 {
+  margin: 0;
+  color: #26323c;
+  font-size: 0.9rem;
+  font-weight: 900;
+  text-transform: uppercase;
+}
+
+.history-entry-list {
+  display: grid;
+  gap: 8px;
+}
+
+.history-entry {
+  display: grid;
+  gap: 4px;
+  border-radius: 8px;
+  padding: 10px 12px;
+  background: #eef4f0;
+}
+
+.history-entry strong {
+  min-width: 0;
+  color: #26323c;
+  overflow-wrap: anywhere;
+}
+
+.history-entry span {
+  color: #46535f;
+  line-height: 1.45;
+}
+
+.history-load-more {
+  margin-top: 16px;
+  padding: 0 18px;
+}
+
 .splits-layout {
   display: grid;
   grid-template-columns: minmax(0, 1.35fr) minmax(260px, 0.55fr);
@@ -986,6 +1098,8 @@ p {
   .splits-layout,
   .splits-toolbar,
   .split-card-grid,
+  .history-card__header,
+  .history-card__body,
   .set-entry,
   .cardio-grid,
   .cardio-grid--machine {
@@ -1015,6 +1129,7 @@ p {
   .dashboard-main,
   .streak-panel,
   .log-workspace,
+  .history-screen,
   .recent-panel,
   .splits-library,
   .split-guidance {
@@ -1022,7 +1137,8 @@ p {
   }
 
   .dashboard-actions,
-  .dashboard-metrics {
+  .dashboard-metrics,
+  .history-card__metrics {
     grid-template-columns: 1fr;
   }
 

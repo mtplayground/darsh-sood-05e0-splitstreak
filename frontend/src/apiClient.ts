@@ -173,6 +173,59 @@ export type CardioEntry = {
   updated_at: string;
 };
 
+export type HistoryStrengthSet = {
+  id: number;
+  exercise_id: number;
+  exercise_slug: string;
+  exercise_name: string;
+  set_number: number;
+  reps: number;
+  weight_kg: number;
+  created_at: string;
+  updated_at: string;
+};
+
+export type HistoryCardioEntry = {
+  id: number;
+  exercise_id: number;
+  exercise_slug: string;
+  exercise_name: string;
+  cardio_type: string;
+  duration_seconds: number;
+  distance_meters: number | null;
+  intensity_level: number | null;
+  speed_kph: number | null;
+  incline_percent: number | null;
+  notes: string | null;
+  created_at: string;
+  updated_at: string;
+};
+
+export type HistorySession = {
+  id: number;
+  user_sub: string;
+  date: string;
+  started_at: string;
+  completed_at: string | null;
+  notes: string | null;
+  created_at: string;
+  updated_at: string;
+  strength_sets: HistoryStrengthSet[];
+  cardio_entries: HistoryCardioEntry[];
+};
+
+export type HistoryPage = {
+  limit: number;
+  offset: number;
+  has_more: boolean;
+  next_offset: number | null;
+};
+
+export type HistorySessionsResponse = {
+  page: HistoryPage;
+  sessions: HistorySession[];
+};
+
 export type CreateSessionResponse = {
   session: WorkoutSession;
 };
@@ -340,6 +393,20 @@ export async function fetchStreakCalendar(days = 35) {
   return requestJson<StreakCalendarResponse>(`/api/streak?${params.toString()}`, {
     method: 'GET'
   });
+}
+
+export async function fetchHistorySessions(limit = 10, offset = 0) {
+  const params = new URLSearchParams({
+    limit: limit.toString(),
+    offset: offset.toString()
+  });
+
+  return requestJson<HistorySessionsResponse>(
+    `/api/history/sessions?${params.toString()}`,
+    {
+      method: 'GET'
+    }
+  );
 }
 
 export async function fetchSplitTemplates(depth: SplitDepthLevel) {
