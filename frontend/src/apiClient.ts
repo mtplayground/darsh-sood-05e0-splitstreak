@@ -141,6 +141,51 @@ export type AddCardioEntryResponse = {
   cardio_entry: CardioEntry;
 };
 
+export type SyncSessionPayload = {
+  client_id: string;
+  started_at?: string;
+  completed_at?: string | null;
+  notes?: string | null;
+};
+
+export type SyncStrengthSetPayload = AddStrengthSetPayload & {
+  client_id: string;
+  client_session_id: string;
+};
+
+export type SyncCardioEntryPayload = AddCardioEntryPayload & {
+  client_id: string;
+  client_session_id: string;
+};
+
+export type SyncBatchPayload = {
+  sessions: SyncSessionPayload[];
+  strength_sets: SyncStrengthSetPayload[];
+  cardio_entries: SyncCardioEntryPayload[];
+};
+
+export type SyncBatchResponse = {
+  status: 'synced';
+  sessions: Array<{
+    client_id: string;
+    server_id: number;
+    session: WorkoutSession;
+    status: 'synced';
+  }>;
+  strength_sets: Array<{
+    client_id: string;
+    server_id: number;
+    strength_set: StrengthSet;
+    status: 'synced';
+  }>;
+  cardio_entries: Array<{
+    client_id: string;
+    server_id: number;
+    cardio_entry: CardioEntry;
+    status: 'synced';
+  }>;
+};
+
 export class ApiError extends Error {
   readonly loginUrl?: string;
   readonly status: number;
@@ -246,6 +291,13 @@ export async function addCardioEntry(
       method: 'POST'
     }
   );
+}
+
+export async function syncOfflineBatch(payload: SyncBatchPayload) {
+  return requestJson<SyncBatchResponse>('/api/sync/reconcile', {
+    body: JSON.stringify(payload),
+    method: 'POST'
+  });
 }
 
 async function requestJson<T>(path: string, init: RequestInit): Promise<T> {
