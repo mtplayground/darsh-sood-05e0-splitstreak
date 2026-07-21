@@ -1,7 +1,6 @@
 import React from 'react';
 
 import {
-  ApiError,
   type HistoryCardioEntry,
   type HistorySession,
   type HistorySessionsResponse,
@@ -9,7 +8,8 @@ import {
   type StreakCalendarResponse,
   fetchStreakCalendar,
   fetchHistorySessions,
-  redirectToLogin
+  getUserFacingErrorMessage,
+  redirectIfAuthError
 } from './apiClient';
 import { TrendCharts } from './TrendCharts';
 
@@ -49,14 +49,11 @@ export function HistoryScreen() {
           setStreakCalendar(calendarResponse);
         }
       } catch (caught) {
-        if (caught instanceof ApiError && caught.status === 401) {
-          redirectToLogin(caught.loginUrl);
+        if (redirectIfAuthError(caught)) {
           return;
         }
 
-        setMessage(
-          caught instanceof Error ? caught.message : 'History could not be loaded.'
-        );
+        setMessage(getUserFacingErrorMessage(caught, 'History could not be loaded.'));
       } finally {
         if (append) {
           setIsLoadingMore(false);

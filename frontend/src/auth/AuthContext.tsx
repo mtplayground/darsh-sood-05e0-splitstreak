@@ -1,10 +1,12 @@
 import React from 'react';
 
 import {
-  ApiError,
   confirmEmailVerification,
   fetchSession,
+  getUserFacingErrorMessage,
+  isAuthenticationError,
   redirectToLogin,
+  redirectIfAuthError,
   registerAccount,
   requestPasswordReset as requestPasswordResetEmail,
   sendVerificationEmail
@@ -28,7 +30,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       setUser(session.user);
       setStatus('authenticated');
     } catch (caught) {
-      if (caught instanceof ApiError && caught.status === 401) {
+      if (isAuthenticationError(caught)) {
         setUser(null);
         setStatus('unauthenticated');
         return;
@@ -36,7 +38,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
       setUser(null);
       setStatus('unauthenticated');
-      setError(caught instanceof Error ? caught.message : 'Session check failed');
+      setError(getUserFacingErrorMessage(caught, 'Session check failed'));
     }
   }, []);
 
@@ -59,8 +61,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
           setUser(registration.user);
           setStatus('authenticated');
         } catch (caught) {
-          if (caught instanceof ApiError && caught.status === 401) {
-            redirectToLogin(caught.loginUrl);
+          if (redirectIfAuthError(caught)) {
             return;
           }
 
@@ -74,10 +75,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         try {
           return await sendVerificationEmail();
         } catch (caught) {
-          if (caught instanceof ApiError && caught.status === 401) {
-            redirectToLogin(caught.loginUrl);
-          }
-
+          redirectIfAuthError(caught);
           throw caught;
         }
       },
@@ -85,10 +83,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         try {
           return await confirmEmailVerification();
         } catch (caught) {
-          if (caught instanceof ApiError && caught.status === 401) {
-            redirectToLogin(caught.loginUrl);
-          }
-
+          redirectIfAuthError(caught);
           throw caught;
         }
       }

@@ -1,10 +1,10 @@
 import React from 'react';
 
 import {
-  ApiError,
   fetchActiveSplit,
   fetchSplitTemplates,
-  redirectToLogin,
+  getUserFacingErrorMessage,
+  redirectIfAuthError,
   selectActiveSplit,
   type ActiveSplit,
   type SplitDepthLevel,
@@ -34,12 +34,11 @@ export function SplitsLibrary({ onStartLogging }: SplitsLibraryProps) {
       setTemplates(libraryResponse.templates);
       setActiveSplit(activeResponse.active_split);
     } catch (caught) {
-      if (caught instanceof ApiError && caught.status === 401) {
-        redirectToLogin(caught.loginUrl);
+      if (redirectIfAuthError(caught)) {
         return;
       }
 
-      setMessage(caught instanceof Error ? caught.message : 'Splits could not load.');
+      setMessage(getUserFacingErrorMessage(caught, 'Splits could not load.'));
     } finally {
       setIsLoading(false);
     }
@@ -57,14 +56,11 @@ export function SplitsLibrary({ onStartLogging }: SplitsLibraryProps) {
       setActiveSplit(response.active_split);
       setMessage(`${template.name} is now your active split.`);
     } catch (caught) {
-      if (caught instanceof ApiError && caught.status === 401) {
-        redirectToLogin(caught.loginUrl);
+      if (redirectIfAuthError(caught)) {
         return;
       }
 
-      setMessage(
-        caught instanceof Error ? caught.message : 'Active split could not be saved.'
-      );
+      setMessage(getUserFacingErrorMessage(caught, 'Active split could not be saved.'));
     } finally {
       setIsSelectingSlug(null);
     }

@@ -193,14 +193,16 @@ impl LoggingApiError {
                 (
                     StatusCode::INTERNAL_SERVER_ERROR,
                     Json(LoggingError {
-                        error: "logging operation failed",
+                        error: "logging_operation_failed",
+                        message: "Workout changes could not be saved right now. Try again.",
                     }),
                 )
             }
             Self::NotFound => (
                 StatusCode::NOT_FOUND,
                 Json(LoggingError {
-                    error: "workout session not found",
+                    error: "workout_session_not_found",
+                    message: "Workout session was not found. Refresh and try again.",
                 }),
             ),
             Self::Validation(error) => {
@@ -208,7 +210,8 @@ impl LoggingApiError {
                 (
                     StatusCode::BAD_REQUEST,
                     Json(LoggingError {
-                        error: "invalid logging request",
+                        error: "invalid_logging_request",
+                        message: "Check the workout details and try again.",
                     }),
                 )
             }
@@ -273,6 +276,7 @@ pub struct CardioEntryResponse {
 #[derive(Debug, Serialize)]
 pub struct LoggingError {
     pub error: &'static str,
+    pub message: &'static str,
 }
 
 #[cfg(test)]
@@ -294,6 +298,10 @@ mod tests {
         let (status, Json(error)) = LoggingApiError::NotFound.into_response();
 
         assert_eq!(status, StatusCode::NOT_FOUND);
-        assert_eq!(error.error, "workout session not found");
+        assert_eq!(error.error, "workout_session_not_found");
+        assert_eq!(
+            error.message,
+            "Workout session was not found. Refresh and try again."
+        );
     }
 }

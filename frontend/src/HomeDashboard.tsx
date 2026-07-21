@@ -1,12 +1,12 @@
 import React from 'react';
 
 import {
-  ApiError,
   type StreakCalendarResponse,
   type TodayDashboardResponse,
   fetchStreakCalendar,
   fetchTodayDashboard,
-  redirectToLogin
+  getUserFacingErrorMessage,
+  redirectIfAuthError
 } from './apiClient';
 import { getTodayLocalSummary, type TodayLocalSummary } from './localStore';
 import { StreakCalendar } from './StreakCalendar';
@@ -43,14 +43,11 @@ export function HomeDashboard({ onQuickStart, userSub }: HomeDashboardProps) {
       setDashboard(dashboardResponse);
       setStreakCalendar(streakResponse);
     } catch (caught) {
-      if (caught instanceof ApiError && caught.status === 401) {
-        redirectToLogin(caught.loginUrl);
+      if (redirectIfAuthError(caught)) {
         return;
       }
 
-      setMessage(
-        caught instanceof Error ? caught.message : 'Dashboard could not be loaded.'
-      );
+      setMessage(getUserFacingErrorMessage(caught, 'Dashboard could not be loaded.'));
     } finally {
       setIsLoading(false);
     }
