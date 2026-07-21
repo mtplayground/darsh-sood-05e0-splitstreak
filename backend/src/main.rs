@@ -12,6 +12,7 @@ pub mod exercises;
 mod logging;
 mod login;
 mod registration;
+mod sync;
 #[allow(dead_code)]
 pub mod users;
 #[allow(dead_code)]
@@ -117,6 +118,7 @@ fn app(state: AppState) -> Router {
             post(logging::add_cardio_entry),
         )
         .route("/api/dashboard/today", get(dashboard::today))
+        .route("/api/sync/reconcile", post(sync::reconcile))
         .route_layer(middleware::from_fn_with_state(
             state.clone(),
             auth_middleware::require_auth,
