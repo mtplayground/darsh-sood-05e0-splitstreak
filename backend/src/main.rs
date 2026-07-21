@@ -12,6 +12,8 @@ pub mod exercises;
 mod logging;
 mod login;
 mod registration;
+#[allow(dead_code)]
+pub mod split_templates;
 mod sync;
 #[allow(dead_code)]
 pub mod users;
