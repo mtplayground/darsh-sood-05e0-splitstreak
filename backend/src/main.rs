@@ -18,6 +18,7 @@ mod registration;
 pub mod split_templates;
 mod split_selection;
 mod splits_library;
+mod streak_handler;
 mod streaks;
 mod sync;
 #[allow(dead_code)]
@@ -125,6 +126,7 @@ fn app(state: AppState) -> Router {
             post(logging::add_cardio_entry),
         )
         .route("/api/dashboard/today", get(dashboard::today))
+        .route("/api/streak", get(streak_handler::current))
         .route("/api/sync/reconcile", post(sync::reconcile))
         .route(
             "/api/splits/active",

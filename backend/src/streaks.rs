@@ -1,6 +1,6 @@
 use std::collections::HashSet;
 
-use chrono::{NaiveDate, Utc};
+use chrono::{Duration, NaiveDate, Utc};
 use serde::{Deserialize, Serialize};
 use sqlx::PgPool;
 
@@ -24,12 +24,57 @@ pub enum StreakStatus {
     NoActiveSplit,
 }
 
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+pub struct StreakCalendar {
+    pub summary: StreakSummary,
+    pub active_split: Option<StreakActiveSplit>,
+    pub days: Vec<StreakCalendarDay>,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+pub struct StreakActiveSplit {
+    pub template_slug: String,
+    pub template_name: String,
+    pub depth_level: String,
+    pub schedule: Vec<String>,
+    pub selected_on: NaiveDate,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+pub struct StreakCalendarDay {
+    pub date: NaiveDate,
+    pub schedule_item: Option<String>,
+    pub is_training_day: Option<bool>,
+    pub logged: bool,
+    pub status: StreakCalendarDayStatus,
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "snake_case")]
+pub enum StreakCalendarDayStatus {
+    BeforeActiveSplit,
+    Logged,
+    Missed,
+    NoActiveSplit,
+    Pending,
+    Rest,
+}
+
 pub async fn compute_current_streak(
     pool: &PgPool,
     user_sub: &str,
 ) -> Result<StreakSummary, sqlx::Error> {
     let today = Utc::now().date_naive();
     compute_current_streak_on(pool, user_sub, today).await
+}
+
+pub async fn compute_streak_calendar(
+    pool: &PgPool,
+    user_sub: &str,
+    days: i64,
+) -> Result<StreakCalendar, sqlx::Error> {
+    let today = Utc::now().date_naive();
+    compute_streak_calendar_on(pool, user_sub, today, days).await
 }
 
 async fn compute_current_streak_on(
@@ -51,6 +96,44 @@ async fn compute_current_streak_on(
         today,
         &logged_days,
     ))
+}
+
+async fn compute_streak_calendar_on(
+    pool: &PgPool,
+    user_sub: &str,
+    today: NaiveDate,
+    days: i64,
+) -> Result<StreakCalendar, sqlx::Error> {
+    let active_split = active_splits::find_active_split(pool, user_sub).await?;
+    let calendar_start = calendar_start_date(today, days);
+
+    let Some(active_split) = active_split else {
+        return Ok(StreakCalendar {
+            summary: StreakSummary::no_active_split(today),
+            active_split: None,
+            days: build_unconfigured_calendar(calendar_start, today),
+        });
+    };
+
+    let selected_on = active_split.selected_at.date_naive();
+    let logged_days = logged_training_days(pool, user_sub, selected_on, today).await?;
+    let summary = compute_from_active_split(&active_split, selected_on, today, &logged_days);
+    let calendar_days = build_calendar_days(
+        &active_split,
+        selected_on,
+        calendar_start,
+        today,
+        &logged_days,
+    );
+
+    Ok(StreakCalendar {
+        summary,
+        active_split: Some(StreakActiveSplit::from_active_split(
+            &active_split,
+            selected_on,
+        )),
+        days: calendar_days,
+    })
 }
 
 async fn logged_training_days(
@@ -89,6 +172,87 @@ async fn logged_training_days(
     .await?;
 
     Ok(days.into_iter().collect())
+}
+
+fn calendar_start_date(today: NaiveDate, days: i64) -> NaiveDate {
+    today - Duration::days(days.saturating_sub(1))
+}
+
+fn build_unconfigured_calendar(
+    start_date: NaiveDate,
+    today: NaiveDate,
+) -> Vec<StreakCalendarDay> {
+    each_day(start_date, today)
+        .into_iter()
+        .map(|date| StreakCalendarDay {
+            date,
+            schedule_item: None,
+            is_training_day: None,
+            logged: false,
+            status: StreakCalendarDayStatus::NoActiveSplit,
+        })
+        .collect()
+}
+
+fn build_calendar_days(
+    active_split: &ActiveSplit,
+    selected_on: NaiveDate,
+    start_date: NaiveDate,
+    today: NaiveDate,
+    logged_days: &HashSet<NaiveDate>,
+) -> Vec<StreakCalendarDay> {
+    each_day(start_date, today)
+        .into_iter()
+        .map(|date| {
+            if date < selected_on {
+                return StreakCalendarDay {
+                    date,
+                    schedule_item: None,
+                    is_training_day: None,
+                    logged: false,
+                    status: StreakCalendarDayStatus::BeforeActiveSplit,
+                };
+            }
+
+            let schedule_item = schedule_item_on(&active_split.schedule, selected_on, date);
+            let is_training_day = schedule_item
+                .as_deref()
+                .map(is_training_schedule_item)
+                .unwrap_or(false);
+            let logged = logged_days.contains(&date);
+            let status = if logged {
+                StreakCalendarDayStatus::Logged
+            } else if is_training_day && date == today {
+                StreakCalendarDayStatus::Pending
+            } else if is_training_day {
+                StreakCalendarDayStatus::Missed
+            } else {
+                StreakCalendarDayStatus::Rest
+            };
+
+            StreakCalendarDay {
+                date,
+                schedule_item,
+                is_training_day: Some(is_training_day),
+                logged,
+                status,
+            }
+        })
+        .collect()
+}
+
+fn each_day(start_date: NaiveDate, end_date: NaiveDate) -> Vec<NaiveDate> {
+    let mut days = Vec::new();
+    let mut cursor = start_date;
+    while cursor <= end_date {
+        days.push(cursor);
+        cursor = match cursor.succ_opt() {
+            Some(next) => next,
+            None => break,
+        };
+    }
+
+    days
 }
 
 fn compute_from_active_split(
@@ -178,6 +342,18 @@ fn schedule_item_on(
 
 fn is_training_schedule_item(item: &str) -> bool {
     !item.trim().eq_ignore_ascii_case("rest")
+}
+
+impl StreakActiveSplit {
+    fn from_active_split(active_split: &ActiveSplit, selected_on: NaiveDate) -> Self {
+        Self {
+            template_slug: active_split.template_slug.clone(),
+            template_name: active_split.template_name.clone(),
+            depth_level: active_split.depth_level.clone(),
+            schedule: active_split.schedule.clone(),
+            selected_on,
+        }
+    }
 }
 
 impl StreakSummary {
@@ -320,6 +496,63 @@ mod tests {
         assert_eq!(summary.current_days, 1);
         assert_eq!(summary.current_streak_started_on, Some(selected_on));
         assert_eq!(summary.today_is_training_day, Some(true));
+    }
+
+    #[test]
+    fn calendar_marks_logged_rest_missed_and_pending_days() {
+        let selected_on = date("2026-07-14");
+        let today = date("2026-07-17");
+        let active_split = active_split(
+            selected_on,
+            vec!["Train".to_owned(), "Rest".to_owned()],
+        );
+        let logged_days = HashSet::from([selected_on]);
+
+        let days =
+            build_calendar_days(&active_split, selected_on, selected_on, today, &logged_days);
+
+        assert_eq!(
+            days.iter()
+                .map(|day| day.status)
+                .collect::<Vec<StreakCalendarDayStatus>>(),
+            vec![
+                StreakCalendarDayStatus::Logged,
+                StreakCalendarDayStatus::Rest,
+                StreakCalendarDayStatus::Missed,
+                StreakCalendarDayStatus::Rest,
+            ]
+        );
+        assert_eq!(days[0].schedule_item, Some("Train".to_owned()));
+        assert_eq!(days[1].is_training_day, Some(false));
+    }
+
+    #[test]
+    fn calendar_marks_today_training_without_log_as_pending() {
+        let selected_on = date("2026-07-14");
+        let today = date("2026-07-16");
+        let active_split = active_split(
+            selected_on,
+            vec!["Train".to_owned(), "Rest".to_owned()],
+        );
+        let logged_days = HashSet::from([selected_on]);
+
+        let days =
+            build_calendar_days(&active_split, selected_on, selected_on, today, &logged_days);
+
+        assert_eq!(
+            days.last().map(|day| day.status),
+            Some(StreakCalendarDayStatus::Pending)
+        );
+    }
+
+    #[test]
+    fn unconfigured_calendar_returns_no_active_split_days() {
+        let days = build_unconfigured_calendar(date("2026-07-14"), date("2026-07-16"));
+
+        assert_eq!(days.len(), 3);
+        assert!(days
+            .iter()
+            .all(|day| day.status == StreakCalendarDayStatus::NoActiveSplit));
     }
 
     fn active_split(selected_on: NaiveDate, schedule: Vec<String>) -> ActiveSplit {
