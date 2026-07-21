@@ -4,10 +4,11 @@ import { AuthProvider } from './auth/AuthContext';
 import { useAuth } from './auth/useAuth';
 import { HomeDashboard } from './HomeDashboard';
 import { LogScreen } from './logging/LogScreen';
+import { SplitsLibrary } from './SplitsLibrary';
 import { SyncStatusIndicator } from './SyncStatus';
 
 type AuthPanel = 'login' | 'register';
-type AuthenticatedView = 'home' | 'log';
+type AuthenticatedView = 'home' | 'log' | 'splits';
 
 export function App() {
   return (
@@ -230,7 +231,7 @@ function AuthenticatedApp() {
           </div>
           <div>
             <p className="eyebrow">SplitStreak</p>
-            <h1>{view === 'home' ? 'Dashboard' : 'Log workout'}</h1>
+            <h1>{viewTitle(view)}</h1>
           </div>
         </div>
         <nav className="app-nav" aria-label="Primary">
@@ -250,6 +251,16 @@ function AuthenticatedApp() {
           >
             Log
           </button>
+          <button
+            aria-current={view === 'splits' ? 'page' : undefined}
+            className={
+              view === 'splits' ? 'nav-button nav-button--active' : 'nav-button'
+            }
+            onClick={() => setView('splits')}
+            type="button"
+          >
+            Splits
+          </button>
         </nav>
         <SyncStatusIndicator userSub={user.sub} />
         {user.picture_url ? (
@@ -261,11 +272,11 @@ function AuthenticatedApp() {
         )}
       </header>
 
-      {view === 'home' ? (
+      {view === 'home' && (
         <HomeDashboard onQuickStart={() => setView('log')} userSub={user.sub} />
-      ) : (
-        <LogScreen userSub={user.sub} />
       )}
+      {view === 'log' && <LogScreen userSub={user.sub} />}
+      {view === 'splits' && <SplitsLibrary onStartLogging={() => setView('log')} />}
 
       <section
         className="profile-panel account-strip"
@@ -299,6 +310,18 @@ function AuthenticatedApp() {
       {message && <p className="form-message">{message}</p>}
     </main>
   );
+}
+
+function viewTitle(view: AuthenticatedView) {
+  if (view === 'log') {
+    return 'Log workout';
+  }
+
+  if (view === 'splits') {
+    return 'Splits';
+  }
+
+  return 'Dashboard';
 }
 
 function initials(value: string) {

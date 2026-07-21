@@ -499,7 +499,9 @@ p {
 }
 
 .log-workspace,
-.recent-panel {
+.recent-panel,
+.splits-library,
+.split-guidance {
   border: 1px solid #d5ddd4;
   border-radius: 8px;
   background: #ffffff;
@@ -510,7 +512,8 @@ p {
   padding: 22px;
 }
 
-.recent-panel {
+.recent-panel,
+.split-guidance {
   min-height: 278px;
   padding: 20px;
 }
@@ -700,6 +703,125 @@ p {
   line-height: 1.5;
 }
 
+.splits-layout {
+  display: grid;
+  grid-template-columns: minmax(0, 1.35fr) minmax(260px, 0.55fr);
+  gap: 16px;
+  align-items: start;
+}
+
+.splits-library {
+  padding: 22px;
+}
+
+.splits-toolbar {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(260px, 0.42fr);
+  gap: 16px;
+  align-items: start;
+}
+
+.splits-depth-toggle {
+  margin-bottom: 0;
+}
+
+.active-split-strip {
+  display: flex;
+  justify-content: space-between;
+  gap: 16px;
+  align-items: center;
+  margin-bottom: 16px;
+  border: 1px solid #dcefe6;
+  border-radius: 8px;
+  padding: 14px 16px;
+  background: #f2f8f5;
+}
+
+.active-split-strip strong {
+  color: #17483f;
+  font-size: 1.08rem;
+}
+
+.split-card-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 12px;
+}
+
+.split-card {
+  display: grid;
+  gap: 14px;
+  border: 1px solid #e3e8e1;
+  border-radius: 8px;
+  padding: 16px;
+  background: #fbfcfa;
+}
+
+.split-card__header {
+  display: flex;
+  justify-content: space-between;
+  gap: 12px;
+  align-items: flex-start;
+}
+
+.split-card h3 {
+  margin: 0;
+  color: #12181f;
+  font-size: 1.22rem;
+}
+
+.split-card p,
+.split-guidance p {
+  margin-bottom: 0;
+  color: #46535f;
+  line-height: 1.55;
+}
+
+.split-schedule {
+  display: grid;
+  gap: 6px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.split-schedule li {
+  display: flex;
+  justify-content: space-between;
+  gap: 12px;
+  min-height: 40px;
+  align-items: center;
+  border-radius: 8px;
+  padding: 8px 10px;
+  background: #eef4f0;
+}
+
+.split-schedule span {
+  color: #626c76;
+  font-size: 0.78rem;
+  font-weight: 900;
+  text-transform: uppercase;
+}
+
+.split-schedule strong {
+  min-width: 0;
+  color: #26323c;
+  overflow-wrap: anywhere;
+  text-align: right;
+}
+
+.split-select {
+  border-color: #2d647d;
+  background: #edf6f8;
+  color: #1f5268;
+}
+
+.split-select--active {
+  border-color: #17483f;
+  background: #17483f;
+  color: #ffffff;
+}
+
 .account-strip {
   margin-top: 16px;
 }
@@ -762,6 +884,9 @@ p {
   .dashboard-layout,
   .today-workout,
   .log-layout,
+  .splits-layout,
+  .splits-toolbar,
+  .split-card-grid,
   .set-entry,
   .cardio-grid,
   .cardio-grid--machine {
@@ -791,7 +916,9 @@ p {
   .dashboard-main,
   .streak-panel,
   .log-workspace,
-  .recent-panel {
+  .recent-panel,
+  .splits-library,
+  .split-guidance {
     padding: 16px;
   }
 
