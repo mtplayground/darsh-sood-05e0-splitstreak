@@ -151,6 +151,10 @@ fn app(state: AppState) -> Router {
         .route("/api/splits/templates", get(splits_library::list))
         .route("/api/auth/login", get(login::redirect_to_login))
         .route(
+            "/.ideavibes/auth/login",
+            get(login::redirect_to_login),
+        )
+        .route(
             "/api/auth/password-reset",
             post(account_recovery::request_password_reset),
         )
