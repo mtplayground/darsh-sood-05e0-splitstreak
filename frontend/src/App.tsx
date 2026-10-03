@@ -16,7 +16,41 @@ export function App() {
   return (
     <AuthProvider>
       <AuthGate />
+      <MctaiWatermark />
     </AuthProvider>
+  );
+}
+
+function MctaiWatermark() {
+  const [shareLabel, setShareLabel] = React.useState('Share');
+
+  async function share() {
+    try {
+      if (navigator.share) {
+        await navigator.share({
+          title: document.title || 'Ideavibes app',
+          text: 'Built with Ideavibes.ai',
+          url: window.location.href
+        });
+      } else if (navigator.clipboard?.writeText) {
+        await navigator.clipboard.writeText(window.location.href);
+        setShareLabel('Copied');
+        window.setTimeout(() => setShareLabel('Share'), 1600);
+      }
+    } catch {
+      setShareLabel('Share');
+    }
+  }
+
+  return (
+    <div id="mctai-watermark">
+      <a href="https://ideavibes.ai" rel="noopener noreferrer" target="_blank">
+        Built by Ideavibes.ai
+      </a>
+      <button data-mctai-share onClick={() => void share()} type="button">
+        {shareLabel}
+      </button>
+    </div>
   );
 }
 

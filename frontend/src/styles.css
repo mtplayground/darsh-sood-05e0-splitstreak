@@ -1216,3 +1216,45 @@ p {
     grid-template-columns: 52px minmax(0, 1fr) 52px;
   }
 }
+
+#mctai-watermark {
+  position: fixed;
+  right: 16px;
+  bottom: 16px;
+  z-index: 2147483647;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 10px;
+  border: 1px solid rgba(148, 163, 184, 0.35);
+  border-radius: 999px;
+  background: rgba(15, 23, 42, 0.86);
+  color: #f8fafc;
+  box-shadow: 0 10px 30px rgba(15, 23, 42, 0.25);
+  font: 500 12px/1.2 system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+  backdrop-filter: blur(10px);
+}
+
+#mctai-watermark a {
+  color: #f8fafc;
+  text-decoration: none;
+}
+
+#mctai-watermark button {
+  border: 0;
+  border-left: 1px solid rgba(148, 163, 184, 0.35);
+  background: transparent;
+  color: #93c5fd;
+  cursor: pointer;
+  padding: 0 0 0 8px;
+  font: inherit;
+}
+
+@media (max-width: 640px) {
+  #mctai-watermark {
+    right: 50%;
+    bottom: 12px;
+    max-width: calc(100vw - 24px);
+    transform: translateX(50%);
+  }
+}

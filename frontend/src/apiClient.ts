@@ -328,8 +328,8 @@ export class ApiError extends Error {
   }
 }
 
-export function redirectToLogin(loginUrl?: string) {
-  window.location.assign(loginUrl ?? '/api/auth/login');
+export function redirectToLogin(_loginUrl?: string) {
+  window.location.assign('/.ideavibes/auth/login');
 }
 
 export function isAuthenticationError(caught: unknown): caught is ApiError {
